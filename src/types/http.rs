@@ -1,11 +1,10 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{BoardPieces, Player, RoomId, Side};
+use super::{BoardPieces, Player, RoomId, Side};
 
 // receive
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize)]
 pub struct HttpBoardConfig {
     pub team_player_limit: Option<usize>,
     pub first_side: Option<Side>,
@@ -13,12 +12,12 @@ pub struct HttpBoardConfig {
 
 // send
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize)]
 pub struct ServerInfo {
     pub min_version: usize,
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize)]
 #[serde(tag = "success")]
 pub enum CreateRoom {
     #[serde(rename = true)]
@@ -27,7 +26,7 @@ pub enum CreateRoom {
     Err { message: &'static str },
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize)]
 pub struct RoomData<'a> {
     pub room_id: RoomId,
     pub current_turn: Side,
@@ -35,11 +34,11 @@ pub struct RoomData<'a> {
     pub pieces: &'a BoardPieces,
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize)]
 pub struct RoomSummary {
     pub id: RoomId,
     pub players: Vec<String>,
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize)]
 pub struct RoomList(pub Vec<RoomSummary>);

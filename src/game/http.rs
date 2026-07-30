@@ -7,12 +7,14 @@ use axum::{
     middleware::Next,
     response::{IntoResponse as _, Response},
 };
-use numbers_comm_types::{
-    RoomId,
-    http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary, ServerInfo},
-};
 
-use crate::util::{JsonResponse, WebSocketAction, log_ws};
+use crate::{
+    types::{
+        RoomId,
+        http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary, ServerInfo},
+    },
+    util::{JsonResponse, WebSocketAction, log_ws},
+};
 
 use super::{
     MINIMUM_SERVER_VERSION,

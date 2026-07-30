@@ -1,7 +1,6 @@
 use std::fmt;
 
 use rand::seq::IndexedRandom as _;
-use schemars::{JsonSchema, json_schema};
 use serde::{Deserialize, Serialize, de};
 
 const ROOM_ID_LENGTH: usize = 8;
@@ -76,21 +75,5 @@ impl<'de> Deserialize<'de> for RoomId {
             // TODO: should I really implement this...?
             unimplemented!()
         }
-    }
-}
-
-impl JsonSchema for RoomId {
-    fn inline_schema() -> bool {
-        true
-    }
-
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        "string".into()
-    }
-
-    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        json_schema!({
-            "type": "string"
-        })
     }
 }

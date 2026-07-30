@@ -1,12 +1,11 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Position, Side};
+use super::{Position, Side};
 
 // client -> server
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize)]
 #[serde(tag = "t", content = "c")]
 pub enum PlayerActionWithoutAuth {
     #[serde(rename = 0)]
@@ -15,7 +14,7 @@ pub enum PlayerActionWithoutAuth {
     Resume(Uuid),
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize)]
 #[serde(tag = "t", content = "c")]
 pub enum PlayerActionWithAuth {
     #[serde(rename = 2)]
@@ -24,7 +23,7 @@ pub enum PlayerActionWithAuth {
     Move(Position, Position),
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize)]
 #[serde(untagged)]
 pub enum PlayerAction {
     WithoutAuth(PlayerActionWithoutAuth),
@@ -33,7 +32,7 @@ pub enum PlayerAction {
 
 // server -> client
 
-#[derive(Clone, Copy, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Serialize)]
 #[serde(tag = "success")]
 pub enum CreateUser {
     #[serde(rename = true)]
@@ -42,7 +41,7 @@ pub enum CreateUser {
     Err { message: &'static str },
 }
 
-#[derive(Clone, Copy, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Serialize)]
 #[serde(tag = "t", content = "c")]
 pub enum Responses {
     #[serde(rename = 101u8)]
@@ -60,7 +59,7 @@ pub enum Responses {
     GotInvalidData,
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "t", content = "c")]
 pub enum RoomEvent {
     #[serde(rename = 3)]
@@ -71,7 +70,7 @@ pub enum RoomEvent {
     PlayerLeave,
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RegisterRoomEvent {
     #[serde(rename = "i")]
     pub public_id: Uuid,

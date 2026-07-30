@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::LazyLock};
 
-use numbers_comm_types::RoomId;
 use parking_lot::RwLock;
+
+use crate::types::RoomId;
 
 use super::GameSession;
 
@@ -18,7 +19,7 @@ pub static GAME_SESSION_MAP: LazyLock<RwLock<HashMap<RoomId, GameSession>>> = La
                 debug_room_id,
                 GameSession::new(super::board::config::BoardConfig {
                     team_player_limit: usize::MAX,
-                    first_side: numbers_comm_types::Side::A,
+                    first_side: crate::types::Side::A,
                 }),
             )])
         },

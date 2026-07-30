@@ -4,29 +4,12 @@
 
 ## 実行
 
-実行前に [Rust](https://www.rust-lang.org/) と [Node.js](https://nodejs.org/) のインストールが必要です。
+実行前に [Rust](https://www.rust-lang.org/) のインストールが必要です。
 
 ゲームサーバー:
 
 ```
-cargo r --bin numbers-server
-```
-
-フロントエンド:
-
-```
-cd apps/frontend && npm i && npm run dev
-```
-
-## 開発
-
-型の生成:
-
-```
-# まだ済んでいなければ
-cd apps/frontend && npm i && cd ../..
-
-cargo r --bin numbers-comm-types
+cargo r
 ```
 
 ## 計画

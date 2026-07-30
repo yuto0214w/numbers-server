@@ -1,5 +1,6 @@
-use numbers_comm_types::ws::RegisterRoomEvent;
 use tokio::sync::broadcast;
+
+use crate::types::ws::RegisterRoomEvent;
 
 use self::board::{Board, config::BoardConfig};
 

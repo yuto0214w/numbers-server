@@ -1,6 +1,7 @@
-use numbers_comm_types::{Side, http::HttpBoardConfig};
-
-use crate::game::MAX_TEAM_PLAYER_LIMIT;
+use crate::{
+    game::MAX_TEAM_PLAYER_LIMIT,
+    types::{Side, http::HttpBoardConfig},
+};
 
 #[derive(Debug, Clone)]
 pub struct BoardConfig {

@@ -15,6 +15,7 @@ use tower::{Service as _, util::ServiceExt as _};
 use self::util::{log_error, unwrap_infallible};
 
 mod game;
+mod types;
 mod util;
 
 fn main() -> Result<(), Box<dyn Error>> {

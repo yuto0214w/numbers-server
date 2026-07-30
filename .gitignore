@@ -1,6 +1,4 @@
-# フロントエンドのgitignoreについては、テンプレートに同梱されたものを使用し、統合はしない
-
 /target
 
-/apps/backend/BUILD_NUMBER.txt
-/apps/backend/BUILD_NUMBER_RELEASE.txt
+/BUILD_NUMBER.txt
+/BUILD_NUMBER_RELEASE.txt

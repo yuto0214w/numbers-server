@@ -1,4 +1,3 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,7 +12,7 @@ pub const BOARD_SIZE: usize = 8;
 pub type Position = (usize, usize);
 pub type BoardPieces = [[Option<Piece>; BOARD_SIZE]; BOARD_SIZE];
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Side {
     #[default]
@@ -30,14 +29,14 @@ impl Side {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Player {
     pub public_id: Uuid,
     pub name: String,
     pub side: Side,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct Piece {
     pub side: Side,
     pub number: u8,

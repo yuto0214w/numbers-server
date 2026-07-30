@@ -1,13 +1,15 @@
 use std::{collections::HashMap, fmt};
 
-use numbers_comm_types::{
-    BOARD_SIZE, BoardPieces, Piece, Player, Position, Side,
-    ws::{RegisterRoomEvent, RoomEvent},
-};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::game::INITIAL_NUMBER;
+use crate::{
+    game::INITIAL_NUMBER,
+    types::{
+        BOARD_SIZE, BoardPieces, Piece, Player, Position, Side,
+        ws::{RegisterRoomEvent, RoomEvent},
+    },
+};
 
 use self::config::BoardConfig;
 

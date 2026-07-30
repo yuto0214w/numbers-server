@@ -5,15 +5,17 @@ use axum::{
     extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code},
 };
 use futures_util::{SinkExt as _, StreamExt as _};
-use numbers_comm_types::{
-    RoomId,
-    ws::{CreateUser, PlayerAction, PlayerActionWithAuth, PlayerActionWithoutAuth, Responses},
-};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws};
+use crate::{
+    types::{
+        RoomId,
+        ws::{CreateUser, PlayerAction, PlayerActionWithAuth, PlayerActionWithoutAuth, Responses},
+    },
+    util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
+};
 
 use super::{QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
 
