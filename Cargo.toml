@@ -3,33 +3,29 @@ name = "numbers-server"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+codegen-units = 1
+lto = true
+panic = "abort"
+strip = true
+
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
 chrono = "0.4"
 futures-util = "0.3"
-hyper = "1.6"
+hyper = "1.11"
 hyper-util = "0.1"
 parking_lot = "0.12"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
 tower = { version = "0.5", features = ["util"] }
-uuid = { version = "1.17", features = ["v4", "fast-rng", "serde"] }
+uuid = { version = "1.24", features = ["v4", "fast-rng", "serde"] }
 
-[target."cfg(windows)".dependencies]
-windows-sys = { version = "0.60", features = [
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_Console",
     "Win32_System_Threading",
 ] }
-
-[profile.release]
-panic = "abort"
-lto = true
-
-# temporary fix
-# see https://github.com/serde-rs/serde/pull/2525
-[patch.crates-io]
-serde = { git = "https://github.com/Astavie/serde.git", branch = "integer-tags-for-enums" }
-serde_derive = { git = "https://github.com/Astavie/serde.git", branch = "integer-tags-for-enums" }

@@ -1,73 +1,165 @@
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{self, DeserializeOwned},
+    ser::SerializeMap as _,
+};
+use serde_json::Value;
 use uuid::Uuid;
 
 use super::{Position, Side};
 
 // client -> server
 
-#[derive(Deserialize)]
-#[serde(tag = "t", content = "c")]
 pub enum PlayerActionWithoutAuth {
-    #[serde(rename = 0)]
     JoinTeam(Side),
-    #[serde(rename = 1)]
     Resume(Uuid),
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "t", content = "c")]
 pub enum PlayerActionWithAuth {
-    #[serde(rename = 2)]
     LeaveTeam,
-    #[serde(rename = 3)]
     Move(Position, Position),
 }
 
-#[derive(Deserialize)]
-#[serde(untagged)]
 pub enum PlayerAction {
     WithoutAuth(PlayerActionWithoutAuth),
     WithAuth(PlayerActionWithAuth),
 }
 
+fn deserialize_content<T, E>(content: Option<Value>) -> Result<T, E>
+where
+    T: DeserializeOwned,
+    E: de::Error,
+{
+    let content = content.ok_or_else(|| E::missing_field("c"))?;
+    serde_json::from_value(content).map_err(E::custom)
+}
+
+impl<'de> Deserialize<'de> for PlayerAction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Tagged {
+            t: u8,
+            #[serde(default)]
+            c: Option<Value>,
+        }
+
+        let Tagged { t, c } = Tagged::deserialize(deserializer)?;
+        match t {
+            0 => Ok(Self::WithoutAuth(PlayerActionWithoutAuth::JoinTeam(
+                deserialize_content(c)?,
+            ))),
+            1 => Ok(Self::WithoutAuth(PlayerActionWithoutAuth::Resume(
+                deserialize_content(c)?,
+            ))),
+            2 => Ok(Self::WithAuth(PlayerActionWithAuth::LeaveTeam)),
+            3 => {
+                let (old_position, new_position) = deserialize_content(c)?;
+                Ok(Self::WithAuth(PlayerActionWithAuth::Move(
+                    old_position,
+                    new_position,
+                )))
+            }
+            _ => Err(de::Error::invalid_value(
+                de::Unexpected::Unsigned(t.into()),
+                &"a known player action tag",
+            )),
+        }
+    }
+}
+
 // server -> client
 
-#[derive(Clone, Copy, Serialize)]
-#[serde(tag = "success")]
+#[derive(Clone, Copy)]
 pub enum CreateUser {
-    #[serde(rename = true)]
     Ok { private_id: Uuid, public_id: Uuid },
-    #[serde(rename = false)]
     Err { message: &'static str },
 }
 
-#[derive(Clone, Copy, Serialize)]
-#[serde(tag = "t", content = "c")]
+impl Serialize for CreateUser {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(3))?;
+        match self {
+            Self::Ok {
+                private_id,
+                public_id,
+            } => {
+                map.serialize_entry("success", &true)?;
+                map.serialize_entry("private_id", private_id)?;
+                map.serialize_entry("public_id", public_id)?;
+            }
+            Self::Err { message } => {
+                map.serialize_entry("success", &false)?;
+                map.serialize_entry("message", message)?;
+            }
+        }
+        map.end()
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum Responses {
-    #[serde(rename = 101u8)]
     UserCreated(CreateUser),
-    #[serde(rename = 102u8)]
     Authorized,
-    #[serde(rename = 103u8)]
     ActionNotAccepted,
-    #[serde(rename = 104u8)]
     SessionExpired,
-    //
-    #[serde(skip)]
+
     AuthorizedInternal(Uuid),
-    #[serde(skip)]
     GotInvalidData,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "t", content = "c")]
+impl Serialize for Responses {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let (tag, content) = match self {
+            Self::UserCreated(user) => (101u8, Some(user)),
+            Self::Authorized => (102, None),
+            Self::ActionNotAccepted => (103, None),
+            Self::SessionExpired => (104, None),
+            Self::AuthorizedInternal(_) | Self::GotInvalidData => unreachable!(),
+        };
+        let mut map = serializer.serialize_map(Some(1 + usize::from(content.is_some())))?;
+        map.serialize_entry("t", &tag)?;
+        if let Some(content) = content {
+            map.serialize_entry("c", content)?;
+        }
+        map.end()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum RoomEvent {
-    #[serde(rename = 3)]
     MovePiece(bool, (Position, Position)),
-    #[serde(rename = 4)]
     PlayerJoin(Side, String),
-    #[serde(rename = 5)]
     PlayerLeave,
+}
+
+impl Serialize for RoomEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        match self {
+            Self::MovePiece(toggle_turn, positions) => {
+                map.serialize_entry("t", &3u8)?;
+                map.serialize_entry("c", &(toggle_turn, positions))?;
+            }
+            Self::PlayerJoin(side, name) => {
+                map.serialize_entry("t", &4u8)?;
+                map.serialize_entry("c", &(side, name))?;
+            }
+            Self::PlayerLeave => map.serialize_entry("t", &5u8)?,
+        }
+        map.end()
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

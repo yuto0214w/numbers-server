@@ -48,7 +48,7 @@ pub fn get_time_string() -> DelayedFormat<StrftimeItems<'static>> {
 #[inline(always)]
 pub fn generate_name() -> String {
     let mut thread_rng = rand::rng();
-    let three_numbers = (b'A'..=b'Z').choose_multiple(&mut thread_rng, 4);
+    let three_numbers = (b'A'..=b'Z').sample(&mut thread_rng, 4);
     let mut pseudo_id = Vec::new();
     pseudo_id.resize_with(9, || {
         three_numbers.choose(&mut thread_rng).copied().unwrap()

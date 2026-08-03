@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser::SerializeMap as _};
 
 use super::{BoardPieces, Player, RoomId, Side};
 
@@ -17,13 +17,29 @@ pub struct ServerInfo {
     pub min_version: usize,
 }
 
-#[derive(Serialize)]
-#[serde(tag = "success")]
 pub enum CreateRoom {
-    #[serde(rename = true)]
     Ok { room_id: RoomId },
-    #[serde(rename = false)]
     Err { message: &'static str },
+}
+
+impl Serialize for CreateRoom {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(2))?;
+        match self {
+            Self::Ok { room_id } => {
+                map.serialize_entry("success", &true)?;
+                map.serialize_entry("room_id", room_id)?;
+            }
+            Self::Err { message } => {
+                map.serialize_entry("success", &false)?;
+                map.serialize_entry("message", message)?;
+            }
+        }
+        map.end()
+    }
 }
 
 #[derive(Serialize)]
