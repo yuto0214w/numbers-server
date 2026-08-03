@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, time::Instant};
 
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::{
-    game::INITIAL_NUMBER,
+    game::{INITIAL_NUMBER, PLAYER_GRACE_PERIOD},
     types::{
         BOARD_SIZE, BoardPieces, Piece, Player, Position, Side,
         ws::{RegisterRoomEvent, RoomEvent},
@@ -39,7 +39,7 @@ type BoardOperationResult<T> = Result<T, BoardOperationError>;
 #[inline(always)]
 fn check_position(position: Position) -> BoardOperationResult<Position> {
     let (x, y) = position;
-    if x > BOARD_SIZE || y > BOARD_SIZE {
+    if x >= BOARD_SIZE || y >= BOARD_SIZE {
         return Err(BoardOperationError::InvalidPosition);
     }
     Ok(position)
@@ -50,6 +50,7 @@ pub struct Board {
     config: BoardConfig,
     room_queue: broadcast::Sender<RegisterRoomEvent>,
     players: HashMap<Uuid, Player>,
+    disconnected_at: HashMap<Uuid, Instant>,
     pieces: BoardPieces,
     current_turn: Side,
     // move_log: Vec<(Side, Position)>,
@@ -81,6 +82,7 @@ impl Board {
             config,
             room_queue,
             players: HashMap::new(),
+            disconnected_at: HashMap::new(),
             pieces,
             // move_log: Vec::new(),
         }
@@ -112,6 +114,7 @@ impl Board {
     }
 
     pub fn remove_player(&mut self, private_id: Uuid) -> Option<Uuid> {
+        self.disconnected_at.remove(&private_id);
         let result = self
             .players
             .remove(&private_id)
@@ -120,6 +123,28 @@ impl Board {
             self.send_to_queue(public_id, RoomEvent::PlayerLeave);
         }
         result
+    }
+
+    pub fn mark_disconnected(&mut self, private_id: Uuid) {
+        if self.players.contains_key(&private_id) {
+            self.disconnected_at.insert(private_id, Instant::now());
+        }
+    }
+
+    pub fn mark_connected(&mut self, private_id: Uuid) {
+        self.disconnected_at.remove(&private_id);
+    }
+
+    pub fn evict_expired_players(&mut self) {
+        let expired: Vec<Uuid> = self
+            .disconnected_at
+            .iter()
+            .filter(|(_, disconnected_at)| disconnected_at.elapsed() >= PLAYER_GRACE_PERIOD)
+            .map(|(private_id, _)| *private_id)
+            .collect();
+        for private_id in expired {
+            self.remove_player(private_id);
+        }
     }
 
     pub fn contains_player(&self, private_id: Uuid) -> bool {

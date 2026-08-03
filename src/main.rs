@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         {
             util::windows_setup();
         }
+        game::spawn_player_eviction();
         let app = Router::new()
             .route("/", get(game::http::server_info))
             .nest(

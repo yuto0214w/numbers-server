@@ -19,6 +19,18 @@ use crate::{
 
 use super::{QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
 
+#[derive(Default, Clone, Copy)]
+struct ConnectionPlayer {
+    id: Option<Uuid>,
+    authorized: bool,
+}
+
+impl ConnectionPlayer {
+    fn authorized_id(&self) -> Option<Uuid> {
+        self.id.filter(|_| self.authorized)
+    }
+}
+
 #[inline(always)]
 pub async fn handle_socket(mut socket: WebSocket, ip: IpAddr, room_id: RoomId) {
     match socket
@@ -76,43 +88,62 @@ pub async fn handle_socket(mut socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                         break;
                     }
                 },
-                val = conn_rx.recv() => match val.unwrap() {
-                    Responses::UserCreated(_)
-                    | Responses::Authorized
-                    | Responses::ActionNotAccepted
-                    | Responses::SessionExpired => {
-                        let text = serde_json::to_string(val.as_ref().unwrap()).unwrap();
+                val = conn_rx.recv() => match val {
+                    Some(
+                        response @ (Responses::UserCreated(_)
+                        | Responses::Authorized
+                        | Responses::ActionNotAccepted
+                        | Responses::SessionExpired),
+                    ) => {
+                        let text = serde_json::to_string(&response).unwrap();
                         if send_text_message!(&text).is_err() {
                             break;
                         }
                     }
-                    Responses::AuthorizedInternal(_) => unreachable!(),
-                    Responses::GotInvalidData => {
+                    Some(Responses::AuthorizedInternal(_)) => unreachable!(),
+                    Some(Responses::GotInvalidData) => {
                         send_close_message!(close_code::INVALID, "Invalid Data");
                         break;
                     }
+                    None => break,
                 },
             }
         }
     });
 
-    let private_id: Arc<Mutex<Option<Uuid>>> = Arc::new(Mutex::new(None));
+    let player: Arc<Mutex<ConnectionPlayer>> = Arc::new(Mutex::new(ConnectionPlayer::default()));
     let mut recv_task = tokio::spawn({
-        let private_id = Arc::clone(&private_id);
+        let player = Arc::clone(&player);
         async move {
             while let Some(Ok(msg)) = receiver.next().await {
-                let permit = conn_tx.reserve().await.unwrap();
+                let Ok(permit) = conn_tx.reserve().await else {
+                    break;
+                };
                 match msg {
                     Message::Text(text) => {
                         log_ws(ip, WebSocketReceiveAction::GotText(&text));
                         if let Ok(action) = serde_json::from_str::<PlayerAction>(&text) {
-                            let cloned_private_id = *private_id.lock();
-                            if let Some(msg) = handle_game(action, room_id, cloned_private_id) {
-                                if let Responses::AuthorizedInternal(authorized_private_id) = msg {
-                                    *private_id.lock() = Some(authorized_private_id);
-                                    permit.send(Responses::Authorized);
-                                } else {
-                                    permit.send(msg);
+                            let authorized_id = player.lock().authorized_id();
+                            if let Some(msg) = handle_game(action, room_id, authorized_id) {
+                                match msg {
+                                    Responses::AuthorizedInternal(authorized_private_id) => {
+                                        *player.lock() = ConnectionPlayer {
+                                            id: Some(authorized_private_id),
+                                            authorized: true,
+                                        };
+                                        permit.send(Responses::Authorized);
+                                    }
+                                    Responses::UserCreated(CreateUser::Ok {
+                                        private_id, ..
+                                    }) => {
+                                        player.lock().id = Some(private_id);
+                                        permit.send(msg);
+                                    }
+                                    Responses::SessionExpired => {
+                                        player.lock().authorized = false;
+                                        permit.send(msg);
+                                    }
+                                    _ => permit.send(msg),
                                 }
                             }
                         } else {
@@ -133,8 +164,8 @@ pub async fn handle_socket(mut socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         _ = (&mut send_task) => recv_task.abort(),
         _ = (&mut recv_task) => send_task.abort(),
     }
-    if let Some(private_id) = *private_id.lock() {
-        session_lock.with_write(|session| session.get_board_mut().remove_player(private_id));
+    if let Some(private_id) = player.lock().id {
+        session_lock.with_write(|session| session.get_board_mut().mark_disconnected(private_id));
     };
 }
 
@@ -146,6 +177,7 @@ fn handle_game(
 ) -> Option<Responses> {
     GameSessionLock::new(room_id).with_write(|session| {
         let board = session.get_board_mut();
+        board.evict_expired_players();
         match action {
             PlayerAction::WithoutAuth(action) => match action {
                 PlayerActionWithoutAuth::JoinTeam(side) => {
@@ -167,21 +199,31 @@ fn handle_game(
                     if !board.contains_player(private_id) {
                         return Some(Responses::SessionExpired);
                     }
+                    board.mark_connected(private_id);
                     return Some(Responses::AuthorizedInternal(private_id));
                 }
             },
-            PlayerAction::WithAuth(action) if private_id.is_some() => match action {
-                PlayerActionWithAuth::LeaveTeam => todo!(),
-                PlayerActionWithAuth::Move(old_position, new_position) => {
-                    if board
-                        .move_piece(private_id.unwrap(), old_position, new_position)
-                        .is_err()
-                    {
-                        return Some(Responses::ActionNotAccepted);
+            PlayerAction::WithAuth(action) => match private_id {
+                Some(private_id) => {
+                    if !board.contains_player(private_id) {
+                        return Some(Responses::SessionExpired);
+                    }
+                    match action {
+                        PlayerActionWithAuth::LeaveTeam => {
+                            board.remove_player(private_id);
+                        }
+                        PlayerActionWithAuth::Move(old_position, new_position) => {
+                            if board
+                                .move_piece(private_id, old_position, new_position)
+                                .is_err()
+                            {
+                                return Some(Responses::ActionNotAccepted);
+                            }
+                        }
                     }
                 }
+                None => return Some(Responses::ActionNotAccepted),
             },
-            PlayerAction::WithAuth(_) => return Some(Responses::ActionNotAccepted),
         }
         None
     })
