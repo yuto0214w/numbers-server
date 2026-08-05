@@ -1,4 +1,2 @@
 /target
-
-/BUILD_NUMBER.txt
-/BUILD_NUMBER_RELEASE.txt
+.DS_Store
