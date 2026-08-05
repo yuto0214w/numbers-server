@@ -21,6 +21,14 @@ pub enum Side {
 }
 
 impl Side {
+    pub fn random() -> Self {
+        if rand::random_bool(0.5) {
+            Self::A
+        } else {
+            Self::B
+        }
+    }
+
     pub fn reverse(self) -> Self {
         match self {
             Self::A => Self::B,

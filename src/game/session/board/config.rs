@@ -20,7 +20,7 @@ impl TryFrom<HttpBoardConfig> for BoardConfig {
         };
         Ok(Self {
             team_player_limit,
-            first_side: value.first_side.unwrap_or(Side::A),
+            first_side: value.first_side.unwrap_or_else(Side::random),
         })
     }
 }
