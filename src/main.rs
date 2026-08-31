@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         game::spawn_player_eviction();
         let (router, api) = OpenApiRouter::with_openapi(openapi::ApiDoc::openapi())
-            .routes(routes!(game::http::server_info))
+            .routes(routes!(game::http::version))
             .nest(
                 "/rooms",
                 OpenApiRouter::new()
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     async move { ([(header::CONTENT_TYPE, "application/json")], openapi_json) }
                 }),
             )
-            .merge(Scalar::with_url("/docs", api))
+            .merge(Scalar::with_url("/", api))
             .layer(middleware::from_fn(util::log_http_middleware));
         let addr = {
             #[cfg(debug_assertions)]

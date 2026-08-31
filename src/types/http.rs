@@ -22,12 +22,6 @@ pub struct HttpBoardConfig {
 
 // send
 
-#[derive(Serialize, ToSchema)]
-pub struct ServerInfo {
-    /// クライアントに要求する最小のプロトコルバージョン
-    pub min_version: usize,
-}
-
 /// 部屋の作成結果
 ///
 /// `success` で成功と失敗を見分ける

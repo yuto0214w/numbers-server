@@ -14,7 +14,8 @@ cargo r
 
 ## API ドキュメント
 
-サーバーの起動中は http://localhost:3000/docs で Scalar を開けます。
+サーバーの起動中は http://localhost:3000/ で Scalar を開けます。
+
 OpenAPI の定義そのものは http://localhost:3000/openapi.json にあります。
 
 ## 感謝

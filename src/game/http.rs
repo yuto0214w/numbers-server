@@ -12,7 +12,7 @@ use crate::{
     openapi::Null,
     types::{
         RoomId,
-        http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary, ServerInfo},
+        http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary},
     },
     util::{JsonResponse, WebSocketAction, log_ws},
 };
@@ -27,21 +27,22 @@ use super::{
     ws::handle_socket,
 };
 
-/// サーバーの情報を返す
+/// クライアントに要求する最小のプロトコルバージョンを返す
 #[utoipa::path(
     get,
-    path = "/",
+    path = "/version",
     tag = "server",
-    responses((status = OK, description = "サーバーの情報", body = ServerInfo)),
+    responses(
+        (
+            status = OK,
+            description = "クライアントに要求する最小のプロトコルバージョン",
+            body = usize,
+            content_type = "text/plain",
+        ),
+    ),
 )]
-pub async fn server_info() -> Response {
-    JsonResponse {
-        status_code: StatusCode::OK,
-        content: ServerInfo {
-            min_version: MINIMUM_SERVER_VERSION,
-        },
-    }
-    .into_response()
+pub async fn version() -> Response {
+    MINIMUM_SERVER_VERSION.to_string().into_response()
 }
 
 /// 新しい部屋を作る
