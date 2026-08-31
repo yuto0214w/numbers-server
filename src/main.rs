@@ -1,9 +1,6 @@
 use std::{error::Error, io, net::SocketAddr};
 
-use axum::{
-    Router, middleware,
-    routing::{get, post},
-};
+use axum::{body::Bytes, http::header, middleware, routing::get};
 use hyper::{Request, body::Incoming};
 use hyper_util::{
     rt::{TokioExecutor, TokioIo},
@@ -11,10 +8,14 @@ use hyper_util::{
 };
 use tokio::runtime::Builder as TokioRuntimeBuilder;
 use tower::{Service as _, util::ServiceExt as _};
+use utoipa::OpenApi as _;
+use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa_scalar::{Scalar, Servable as _};
 
 use self::util::{log_error, unwrap_infallible};
 
 mod game;
+mod openapi;
 mod types;
 mod util;
 
@@ -28,21 +29,32 @@ fn main() -> Result<(), Box<dyn Error>> {
             util::windows_setup();
         }
         game::spawn_player_eviction();
-        let app = Router::new()
-            .route("/", get(game::http::server_info))
+        let (router, api) = OpenApiRouter::with_openapi(openapi::ApiDoc::openapi())
+            .routes(routes!(game::http::server_info))
             .nest(
                 "/rooms",
-                Router::new()
-                    .route("/", get(game::http::room_list))
-                    .route("/new", post(game::http::new_room))
+                OpenApiRouter::new()
+                    .routes(routes!(game::http::room_list))
+                    .routes(routes!(game::http::new_room))
                     .nest(
                         "/{room_id}",
-                        Router::new()
-                            .route("/", get(game::http::room_info))
-                            .route("/ws", get(game::http::serve_ws))
+                        OpenApiRouter::new()
+                            .routes(routes!(game::http::room_info))
+                            .routes(routes!(game::http::serve_ws))
                             .layer(middleware::from_fn(game::http::room_existence_check)),
                     ),
             )
+            .split_for_parts();
+        let openapi_json = Bytes::from(api.to_json()?);
+        let app = router
+            .route(
+                "/openapi.json",
+                get(move || {
+                    let openapi_json = openapi_json.clone();
+                    async move { ([(header::CONTENT_TYPE, "application/json")], openapi_json) }
+                }),
+            )
+            .merge(Scalar::with_url("/docs", api))
             .layer(middleware::from_fn(util::log_http_middleware));
         let addr = {
             #[cfg(debug_assertions)]
@@ -56,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 SocketAddr::from(([0, 0, 0, 0], 3000))
             }
         };
-        println!("Listening at {}:{}", addr.ip(), addr.port());
+        println!("Listening at http://{}/", addr);
         let mut make_service = app.into_make_service_with_connect_info::<SocketAddr>();
         let listener = tokio::net::TcpListener::bind(addr).await?;
         loop {

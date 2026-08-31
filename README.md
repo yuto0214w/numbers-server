@@ -12,9 +12,10 @@
 cargo r
 ```
 
-## 計画
+## API ドキュメント
 
-https://hackmd.io/@yuto0214w/r1YJI5JBex
+サーバーの起動中は http://localhost:3000/docs で Scalar を開けます。
+OpenAPI の定義そのものは http://localhost:3000/openapi.json にあります。
 
 ## 感謝
 

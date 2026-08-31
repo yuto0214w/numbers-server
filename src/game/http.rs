@@ -9,6 +9,7 @@ use axum::{
 };
 
 use crate::{
+    openapi::Null,
     types::{
         RoomId,
         http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary, ServerInfo},
@@ -26,6 +27,13 @@ use super::{
     ws::handle_socket,
 };
 
+/// サーバーの情報を返す
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "server",
+    responses((status = OK, description = "サーバーの情報", body = ServerInfo)),
+)]
 pub async fn server_info() -> Response {
     JsonResponse {
         status_code: StatusCode::OK,
@@ -36,6 +44,25 @@ pub async fn server_info() -> Response {
     .into_response()
 }
 
+/// 新しい部屋を作る
+#[utoipa::path(
+    post,
+    path = "/new",
+    tag = "rooms",
+    request_body = HttpBoardConfig,
+    responses(
+        (status = CREATED, description = "部屋を作成した", body = CreateRoom),
+        (status = BAD_REQUEST, description = "設定が不正", body = CreateRoom),
+        (
+            status = UNSUPPORTED_MEDIA_TYPE,
+            description = "Content-Type が application/json ではない",
+        ),
+        (
+            status = UNPROCESSABLE_ENTITY,
+            description = "ボディを JSON として解釈できない",
+        ),
+    ),
+)]
 pub async fn new_room(Json(config): Json<HttpBoardConfig>) -> Response {
     let config = match BoardConfig::try_from(config) {
         Ok(config) => config,
@@ -58,6 +85,13 @@ pub async fn new_room(Json(config): Json<HttpBoardConfig>) -> Response {
     .into_response()
 }
 
+/// 存在する部屋を全て返す
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "rooms",
+    responses((status = OK, description = "存在する部屋の一覧", body = RoomList)),
+)]
 pub async fn room_list() -> Response {
     let ids: Vec<RoomId> = GAME_SESSION_MAP.read().keys().copied().collect();
     JsonResponse {
@@ -98,6 +132,17 @@ pub async fn room_existence_check(
 
 // vvv 部屋が存在するものとして処理を進めてOK vvv
 
+/// 部屋の現在の状態を返す
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "rooms",
+    params(("room_id" = RoomId, Path)),
+    responses(
+        (status = OK, description = "部屋の現在の状態", body = RoomData),
+        (status = NOT_FOUND, description = "部屋が存在しない", body = Null),
+    ),
+)]
 pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     GameSessionLock::new(room_id).with_read(|session| {
         let board = session.get_board();
@@ -114,6 +159,23 @@ pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     })
 }
 
+/// 対局用の WebSocket に繋ぐ
+///
+/// 接続後にやり取りするメッセージは `PlayerAction` / `Responses` / `RegisterRoomEvent` を参照
+#[utoipa::path(
+    get,
+    path = "/ws",
+    tag = "websocket",
+    params(("room_id" = RoomId, Path)),
+    responses(
+        (status = SWITCHING_PROTOCOLS, description = "WebSocket に切り替えた"),
+        (
+            status = BAD_REQUEST,
+            description = "WebSocket へのアップグレードを要求していない",
+        ),
+        (status = NOT_FOUND, description = "部屋が存在しない", body = Null),
+    ),
+)]
 pub async fn serve_ws(
     Path(room_id): Path<RoomId>,
     ws: WebSocketUpgrade,

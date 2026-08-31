@@ -2,6 +2,10 @@ use std::fmt;
 
 use rand::seq::IndexedRandom as _;
 use serde::{Deserialize, Serialize, de};
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, RefOr, Schema, schema::Type},
+};
 
 const ROOM_ID_LENGTH: usize = 8;
 const ROOM_ID_CHARACTERS: &'static [u8] = concat!(
@@ -11,6 +15,7 @@ const ROOM_ID_CHARACTERS: &'static [u8] = concat!(
     "_"
 )
 .as_bytes();
+const ROOM_ID_PATTERN: &'static str = "[A-Za-z0-9_]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RoomId([u8; ROOM_ID_LENGTH]);
@@ -77,3 +82,21 @@ impl<'de> Deserialize<'de> for RoomId {
         }
     }
 }
+
+impl PartialSchema for RoomId {
+    fn schema() -> RefOr<Schema> {
+        ObjectBuilder::new()
+            .schema_type(Type::String)
+            .description(Some(format!(
+                "部屋の ID ({} を {} 文字並べたもの)",
+                ROOM_ID_PATTERN, ROOM_ID_LENGTH
+            )))
+            .pattern(Some(format!("^{}{{{}}}$", ROOM_ID_PATTERN, ROOM_ID_LENGTH)))
+            .min_length(Some(ROOM_ID_LENGTH))
+            .max_length(Some(ROOM_ID_LENGTH))
+            .examples(["AbC_1234"])
+            .into()
+    }
+}
+
+impl ToSchema for RoomId {}

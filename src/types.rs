@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 pub mod http;
@@ -12,7 +13,8 @@ pub const BOARD_SIZE: usize = 8;
 pub type Position = (usize, usize);
 pub type BoardPieces = [[Option<Piece>; BOARD_SIZE]; BOARD_SIZE];
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+/// 陣営
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Side {
     #[default]
@@ -37,15 +39,19 @@ impl Side {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// 部屋に参加しているプレイヤー
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Player {
+    /// 他のプレイヤーにも公開される ID
     pub public_id: Uuid,
     pub name: String,
     pub side: Side,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+/// 盤上の駒
+#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
 pub struct Piece {
     pub side: Side,
+    /// 駒が持つ数字
     pub number: u8,
 }
