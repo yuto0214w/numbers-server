@@ -1,4 +1,4 @@
-# numbers-game
+# numbers-server
 
 チェッカーと独自の要素を組み合わせたオリジナルのボードゲームです。
 
