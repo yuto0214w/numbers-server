@@ -1,6 +1,6 @@
 use std::{error::Error, io, net::SocketAddr};
 
-use axum::{body::Bytes, http::header, middleware, routing::get};
+use axum::{body::Bytes, http::header, middleware, response::Html, routing::get};
 use hyper::{Request, body::Incoming};
 use hyper_util::{
     rt::{TokioExecutor, TokioIo},
@@ -10,7 +10,6 @@ use tokio::runtime::Builder as TokioRuntimeBuilder;
 use tower::{Service as _, util::ServiceExt as _};
 use utoipa::OpenApi as _;
 use utoipa_axum::{router::OpenApiRouter, routes};
-use utoipa_scalar::{Scalar, Servable as _};
 
 use self::util::{log_error, unwrap_infallible};
 
@@ -48,13 +47,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         let openapi_json = Bytes::from(api.to_json()?);
         let app = router
             .route(
+                "/",
+                get(|| async { Html(include_str!("../res/scalar.html")) }),
+            )
+            .route(
                 "/openapi.json",
                 get(move || {
                     let openapi_json = openapi_json.clone();
                     async move { ([(header::CONTENT_TYPE, "application/json")], openapi_json) }
                 }),
             )
-            .merge(Scalar::with_url("/", api))
             .layer(middleware::from_fn(util::log_http_middleware));
         let addr = {
             #[cfg(debug_assertions)]

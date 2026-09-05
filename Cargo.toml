@@ -24,7 +24,6 @@ tokio = { version = "1", features = ["net", "rt-multi-thread", "sync", "time"] }
 tower = { version = "0.5", features = ["util"] }
 utoipa = { version = "5.5", features = ["uuid"] }
 utoipa-axum = "0.2"
-utoipa-scalar = { version = "0.3", features = ["axum"] }
 uuid = { version = "1.26", features = ["v4", "fast-rng", "serde"] }
 
 [target.'cfg(windows)'.dependencies]
