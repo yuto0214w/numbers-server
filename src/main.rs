@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             util::windows_setup();
         }
         game::spawn_player_eviction();
+
         let (router, api) = OpenApiRouter::with_openapi(openapi::ApiDoc::openapi())
             .routes(routes!(game::http::version))
             .nest(
@@ -44,7 +45,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ),
             )
             .split_for_parts();
+
         let openapi_json = Bytes::from(api.to_json()?);
+        let openapi_yaml = Bytes::from(api.to_yaml()?);
         let app = router
             .route(
                 "/",
@@ -57,7 +60,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                     async move { ([(header::CONTENT_TYPE, "application/json")], openapi_json) }
                 }),
             )
+            .route(
+                "/openapi.yaml",
+                get(move || {
+                    let openapi_yaml = openapi_yaml.clone();
+                    async move { ([(header::CONTENT_TYPE, "application/yaml")], openapi_yaml) }
+                }),
+            )
             .layer(middleware::from_fn(util::log_http_middleware));
+
         let addr = {
             #[cfg(debug_assertions)]
             {
@@ -71,11 +82,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         };
         println!("Listening at http://{}/", addr);
+
         let mut make_service = app.into_make_service_with_connect_info::<SocketAddr>();
         let listener = tokio::net::TcpListener::bind(addr).await?;
+
         loop {
             let (socket, remote_addr) = listener.accept().await?;
             let tower_service = unwrap_infallible(make_service.call(remote_addr).await);
+
             tokio::spawn(async move {
                 let socket = TokioIo::new(socket);
                 let hyper_service =
