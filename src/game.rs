@@ -26,7 +26,7 @@ pub fn spawn_player_eviction() {
         loop {
             interval.tick().await;
             for session in GAME_SESSION_MAP.write().values_mut() {
-                session.get_board_mut().evict_expired_players();
+                session.get_room_mut().evict_expired_players();
             }
         }
     });

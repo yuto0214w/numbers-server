@@ -12,7 +12,7 @@ use super::{BoardPieces, Piece, Player, RoomId, Side};
 
 /// 部屋の作成時に指定できる設定 (どちらも省略可能)
 #[derive(Deserialize, ToSchema)]
-pub struct HttpBoardConfig {
+pub struct HttpRoomConfig {
     /// 1 チームあたりの人数の上限 (省略時は 1)
     #[schema(minimum = 1, maximum = 2, example = 1)]
     pub team_player_limit: Option<usize>,

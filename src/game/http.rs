@@ -12,7 +12,7 @@ use crate::{
     openapi::Null,
     types::{
         RoomId,
-        http::{CreateRoom, HttpBoardConfig, RoomData, RoomList, RoomSummary},
+        http::{CreateRoom, HttpRoomConfig, RoomData, RoomList, RoomSummary},
     },
     util::{JsonResponse, WebSocketAction, log_ws},
 };
@@ -21,8 +21,8 @@ use super::{
     MINIMUM_SERVER_VERSION,
     session::{
         GameSession,
-        board::config::BoardConfig,
         map::{GAME_SESSION_MAP, GameSessionLock},
+        room::config::RoomConfig,
     },
     ws::handle_socket,
 };
@@ -50,7 +50,7 @@ pub async fn version() -> Response {
     post,
     path = "/new",
     tag = "rooms",
-    request_body = HttpBoardConfig,
+    request_body = HttpRoomConfig,
     responses(
         (status = CREATED, description = "部屋を作成した", body = CreateRoom),
         (status = BAD_REQUEST, description = "設定が不正", body = CreateRoom),
@@ -64,8 +64,8 @@ pub async fn version() -> Response {
         ),
     ),
 )]
-pub async fn new_room(Json(config): Json<HttpBoardConfig>) -> Response {
-    let config = match BoardConfig::try_from(config) {
+pub async fn new_room(Json(config): Json<HttpRoomConfig>) -> Response {
+    let config = match RoomConfig::try_from(config) {
         Ok(config) => config,
         Err(message) => {
             return JsonResponse {
@@ -103,7 +103,7 @@ pub async fn room_list() -> Response {
                     id,
                     players: GameSessionLock::new(id).with_read(|session| {
                         session
-                            .get_board()
+                            .get_room()
                             .get_players()
                             .iter()
                             .map(|player| player.name.to_owned())
@@ -146,14 +146,14 @@ pub async fn room_existence_check(
 )]
 pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     GameSessionLock::new(room_id).with_read(|session| {
-        let board = session.get_board();
+        let room = session.get_room();
         JsonResponse {
             status_code: StatusCode::OK,
             content: RoomData {
                 room_id,
-                current_turn: board.get_current_turn(),
-                players: board.get_players(),
-                pieces: board.get_pieces(),
+                current_turn: room.get_current_turn(),
+                players: room.get_players(),
+                pieces: room.get_pieces(),
             },
         }
         .into_response()

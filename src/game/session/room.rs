@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use self::config::BoardConfig;
+use self::config::RoomConfig;
 
 pub mod config;
 
@@ -46,8 +46,8 @@ fn check_position(position: Position) -> BoardOperationResult<Position> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Board {
-    config: BoardConfig,
+pub struct Room {
+    config: RoomConfig,
     room_queue: broadcast::Sender<RegisterRoomEvent>,
     players: HashMap<Uuid, Player>,
     disconnected_at: HashMap<Uuid, Instant>,
@@ -56,8 +56,8 @@ pub struct Board {
     // move_log: Vec<(Side, Position)>,
 }
 
-impl Board {
-    pub fn new(config: BoardConfig, room_queue: broadcast::Sender<RegisterRoomEvent>) -> Self {
+impl Room {
+    pub fn new(config: RoomConfig, room_queue: broadcast::Sender<RegisterRoomEvent>) -> Self {
         let mut pieces: BoardPieces = Default::default();
         for i in 0..3 {
             for j in 0..(BOARD_SIZE / 2) {

@@ -165,7 +165,7 @@ pub async fn handle_socket(mut socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         _ = (&mut recv_task) => send_task.abort(),
     }
     if let Some(private_id) = player.lock().id {
-        session_lock.with_write(|session| session.get_board_mut().mark_disconnected(private_id));
+        session_lock.with_write(|session| session.get_room_mut().mark_disconnected(private_id));
     };
 }
 
@@ -176,12 +176,12 @@ fn handle_game(
     private_id: Option<Uuid>,
 ) -> Option<Responses> {
     GameSessionLock::new(room_id).with_write(|session| {
-        let board = session.get_board_mut();
-        board.evict_expired_players();
+        let room = session.get_room_mut();
+        room.evict_expired_players();
         match action {
             PlayerAction::WithoutAuth(action) => match action {
                 PlayerActionWithoutAuth::JoinTeam(side) => {
-                    match board.create_player(side, generate_name()) {
+                    match room.create_player(side, generate_name()) {
                         Some((private_id, public_id)) => {
                             return Some(Responses::UserCreated(CreateUser::Ok {
                                 private_id,
@@ -196,24 +196,24 @@ fn handle_game(
                     }
                 }
                 PlayerActionWithoutAuth::Resume(private_id) => {
-                    if !board.contains_player(private_id) {
+                    if !room.contains_player(private_id) {
                         return Some(Responses::SessionExpired);
                     }
-                    board.mark_connected(private_id);
+                    room.mark_connected(private_id);
                     return Some(Responses::AuthorizedInternal(private_id));
                 }
             },
             PlayerAction::WithAuth(action) => match private_id {
                 Some(private_id) => {
-                    if !board.contains_player(private_id) {
+                    if !room.contains_player(private_id) {
                         return Some(Responses::SessionExpired);
                     }
                     match action {
                         PlayerActionWithAuth::LeaveTeam => {
-                            board.remove_player(private_id);
+                            room.remove_player(private_id);
                         }
                         PlayerActionWithAuth::Move(old_position, new_position) => {
-                            if board
+                            if room
                                 .move_piece(private_id, old_position, new_position)
                                 .is_err()
                             {

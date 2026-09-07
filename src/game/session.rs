@@ -2,25 +2,25 @@ use tokio::sync::broadcast;
 
 use crate::types::ws::RegisterRoomEvent;
 
-use self::board::{Board, config::BoardConfig};
+use self::room::{Room, config::RoomConfig};
 
 use super::QUEUE_MESSAGE_LIMIT;
 
-pub mod board;
 pub mod map;
+pub mod room;
 
 #[derive(Debug)]
 pub struct GameSession {
-    board: Board,
+    room: Room,
     room_queue: broadcast::Sender<RegisterRoomEvent>,
     _room_queue_recv: broadcast::Receiver<RegisterRoomEvent>,
 }
 
 impl GameSession {
-    pub fn new(config: BoardConfig) -> Self {
+    pub fn new(config: RoomConfig) -> Self {
         let (room_queue, _room_queue_recv) = broadcast::channel(QUEUE_MESSAGE_LIMIT);
         Self {
-            board: Board::new(config, room_queue.clone()),
+            room: Room::new(config, room_queue.clone()),
             room_queue,
             _room_queue_recv,
         }
@@ -30,11 +30,11 @@ impl GameSession {
         self.room_queue.subscribe()
     }
 
-    pub fn get_board(&self) -> &Board {
-        &self.board
+    pub fn get_room(&self) -> &Room {
+        &self.room
     }
 
-    pub fn get_board_mut(&mut self) -> &mut Board {
-        &mut self.board
+    pub fn get_room_mut(&mut self) -> &mut Room {
+        &mut self.room
     }
 }
