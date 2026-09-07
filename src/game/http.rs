@@ -147,13 +147,14 @@ pub async fn room_existence_check(
 pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     GameSessionLock::new(room_id).with_read(|session| {
         let room = session.get_room();
+        let board = room.get_board();
         JsonResponse {
             status_code: StatusCode::OK,
             content: RoomData {
                 room_id,
-                current_turn: room.get_current_turn(),
+                current_turn: board.get_current_turn(),
                 players: room.get_players(),
-                pieces: room.get_pieces(),
+                pieces: board.get_pieces(),
             },
         }
         .into_response()
