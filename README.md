@@ -6,17 +6,28 @@
 
 実行前に [Rust](https://www.rust-lang.org/) のインストールが必要です。
 
-ゲームサーバー:
-
 ```
 cargo r
 ```
 
+## 設定
+
+実行ファイルと同じディレクトリにある `config.toml` を読みます。
+
+なければ [`res/config.toml`](res/config.toml) と同じ内容で作成されます。
+
 ## API ドキュメント
 
-サーバーの起動中は http://localhost:3000/ で Scalar を開けます。
+(設定でオフにできます)
 
-OpenAPI の定義そのものは http://localhost:3000/openapi.json にあります。
+サーバーの起動中に `/` (設定を変えていなければ [`http://localhost:8080/`](http://localhost:8080/)) にアクセスすることで確認できます。
+
+OpenAPI の定義そのものは
+
+- `/openapi.json`
+- `/openapi.yaml`
+
+で配信されます。
 
 ## 感謝
 

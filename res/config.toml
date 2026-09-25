@@ -1,0 +1,48 @@
+# これは，Numbers ゲームサーバーの設定ファイルです。
+# 問題が起きたら，ファイルを削除して再生成することができます。
+#
+# バージョンは編集しないでください。
+version = 1
+
+[listener]
+# CORS で許可するオリジンを指定します。
+# Accepts: boolean, string array of allowed origins
+cors = true
+
+# / や /openapi.{json,yaml} を配信するかどうかを指定します。
+# Accepts: boolean
+serve_docs = true
+
+[listener.http]
+# HTTP で待ち受けるかどうかを指定します。
+# Accepts: boolean
+enabled = true
+
+# 待ち受けるアドレスを指定します。
+# Accepts: string
+address = "127.0.0.1"
+
+# 待ち受けるポートを指定します。
+# Accepts: integer
+port = 8080
+
+[listener.https]
+# HTTPS で待ち受けるかどうかを指定します。
+# Accepts: boolean
+enabled = false
+
+# 待ち受けるアドレスを指定します。
+# Accepts: string
+address = "127.0.0.1"
+
+# 待ち受けるポートを指定します。
+# Accepts: integer
+port = 8443
+
+# 証明書ファイルのパスを指定します。
+# Accepts: string
+cert = ""
+
+# 秘密鍵ファイルのパスを指定します。
+# Accepts: string
+key = ""

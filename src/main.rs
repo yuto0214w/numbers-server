@@ -1,4 +1,4 @@
-use std::{error::Error, io, net::SocketAddr};
+use std::{error::Error, io, net::SocketAddr, process};
 
 use axum::{body::Bytes, http::header, middleware, response::Html, routing::get};
 use hyper::{Request, body::Incoming};
@@ -11,80 +11,108 @@ use tower::{Service as _, util::ServiceExt as _};
 use utoipa::OpenApi as _;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use self::util::{log_error, unwrap_infallible};
+use crate::{
+    config::{Config, Listener},
+    util::{log_error, unwrap_infallible},
+};
 
+mod config;
 mod game;
 mod openapi;
 mod types;
 mod util;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    #[cfg(windows)]
+    util::windows_setup();
+
+    let config = match Config::load_or_create() {
+        Ok(Some(config)) => config,
+        Ok(None) => {
+            println!("Edit the configuration file and/or restart the program.");
+            process::exit(2);
+        }
+        Err(error) => {
+            log_error!("config", error);
+            process::exit(1);
+        }
+    };
+
     let rt = TokioRuntimeBuilder::new_multi_thread()
         .enable_all()
         .build()?;
     rt.block_on(async {
-        #[cfg(windows)]
-        {
-            util::windows_setup();
-        }
         game::spawn_player_eviction();
 
-        let (router, api) = OpenApiRouter::with_openapi(openapi::ApiDoc::openapi())
-            .routes(routes!(game::http::version))
-            .nest(
-                "/rooms",
-                OpenApiRouter::new()
-                    .routes(routes!(game::http::room_list))
-                    .routes(routes!(game::http::new_room))
-                    .nest(
-                        "/{room_id}",
-                        OpenApiRouter::new()
-                            .routes(routes!(game::http::room_info))
-                            .routes(routes!(game::http::serve_ws))
-                            .layer(middleware::from_fn(game::http::room_existence_check)),
-                    ),
-            )
-            .split_for_parts();
+        let app = {
+            let (mut router, api) = OpenApiRouter::with_openapi(openapi::ApiDoc::openapi())
+                .routes(routes!(game::http::version))
+                .nest(
+                    "/rooms",
+                    OpenApiRouter::new()
+                        .routes(routes!(game::http::room_list))
+                        .routes(routes!(game::http::new_room))
+                        .nest(
+                            "/{room_id}",
+                            OpenApiRouter::new()
+                                .routes(routes!(game::http::room_info))
+                                .routes(routes!(game::http::serve_ws))
+                                .layer(middleware::from_fn(game::http::room_existence_check)),
+                        ),
+                )
+                .split_for_parts();
 
-        let openapi_json = Bytes::from(api.to_json()?);
-        let openapi_yaml = Bytes::from(api.to_yaml()?);
-        let app = router
-            .route(
-                "/",
-                get(|| async { Html(include_str!("../res/scalar.html")) }),
-            )
-            .route(
-                "/openapi.json",
-                get(move || {
-                    let openapi_json = openapi_json.clone();
-                    async move { ([(header::CONTENT_TYPE, "application/json")], openapi_json) }
-                }),
-            )
-            .route(
-                "/openapi.yaml",
-                get(move || {
-                    let openapi_yaml = openapi_yaml.clone();
-                    async move { ([(header::CONTENT_TYPE, "application/yaml")], openapi_yaml) }
-                }),
-            )
-            .layer(middleware::from_fn(util::log_http_middleware));
+            if config.listener.serve_docs {
+                let openapi_json = Bytes::from(api.to_json()?);
+                let openapi_yaml = Bytes::from(api.to_yaml()?);
+                router =
+                    router
+                        .route(
+                            "/",
+                            get(|| async { Html(include_str!("../res/scalar.html")) }),
+                        )
+                        .route(
+                            "/openapi.json",
+                            get(move || {
+                                let openapi_json = openapi_json.clone();
+                                async move {
+                                    ([(header::CONTENT_TYPE, "application/json")], openapi_json)
+                                }
+                            }),
+                        )
+                        .route(
+                            "/openapi.yaml",
+                            get(move || {
+                                let openapi_yaml = openapi_yaml.clone();
+                                async move {
+                                    ([(header::CONTENT_TYPE, "application/yaml")], openapi_yaml)
+                                }
+                            }),
+                        );
+            }
 
-        let addr = {
-            #[cfg(debug_assertions)]
-            {
-                println!("This is a debug build.");
-                SocketAddr::from(([127, 0, 0, 1], 3000))
-            }
-            #[cfg(not(debug_assertions))]
-            {
-                println!("This is a release build.");
-                SocketAddr::from(([0, 0, 0, 0], 3000))
-            }
+            router
+                .layer(config.listener.cors.to_layer()?)
+                .layer(middleware::from_fn(util::log_http_middleware))
         };
-        println!("Listening at http://{}/", addr);
+
+        let Listener { http, https, .. } = config.listener;
+        if !http.enabled && !https.enabled {
+            return Err("no listener is enabled".into());
+        }
+        // TODO: implement https listener
+        if !http.enabled || https.enabled {
+            todo!();
+        }
+
+        #[cfg(debug_assertions)]
+        println!("This is a debug build.");
+        #[cfg(not(debug_assertions))]
+        println!("This is a release build.");
 
         let mut make_service = app.into_make_service_with_connect_info::<SocketAddr>();
-        let listener = tokio::net::TcpListener::bind(addr).await?;
+        let listener = tokio::net::TcpListener::bind((http.address.as_str(), http.port)).await?;
+        println!("Listening at http://{}/", listener.local_addr()?);
 
         loop {
             let (socket, remote_addr) = listener.accept().await?;
