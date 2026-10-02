@@ -116,13 +116,11 @@ pub async fn log_http_middleware(
 }
 
 pub enum WebSocketReceiveAction<'a> {
-    GotPong,
     GotText(&'a str),
     GotClose(Option<CloseFrame>),
 }
 
 pub enum WebSocketSendAction<'a> {
-    SendPing,
     SendText(&'a str),
     SendClose(CloseFrame),
 }
@@ -169,7 +167,6 @@ where
             WebSocketAction::Connect => write!(stdout, "Connected")?,
             WebSocketAction::Disconnect => write!(stdout, "Disconnected")?,
             WebSocketAction::Receive(ref inner_action) => match inner_action {
-                WebSocketReceiveAction::GotPong => write!(stdout, "Sent ping")?,
                 WebSocketReceiveAction::GotText(text) => {
                     write!(stdout, "Sent text data: {}", text)?
                 }
@@ -182,14 +179,12 @@ where
                 }
             },
             WebSocketAction::Send(ref inner_action) => match inner_action {
-                Ok(WebSocketSendAction::SendPing) => write!(stdout, "Sent ping")?,
                 Ok(WebSocketSendAction::SendText(text)) => {
                     write!(stdout, "Sent text data: {}", text)?
                 }
                 Ok(WebSocketSendAction::SendClose(cf)) => {
                     write!(stdout, "Sent close: {} \"{}\"", cf.code, cf.reason)?
                 }
-                Err(WebSocketSendAction::SendPing) => write!(stdout, "Could not send ping")?,
                 Err(WebSocketSendAction::SendText(text)) => {
                     write!(stdout, "Could not send text data: {}", text)?
                 }

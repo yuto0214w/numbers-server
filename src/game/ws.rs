@@ -1,9 +1,6 @@
 use std::{net::IpAddr, sync::Arc};
 
-use axum::{
-    body::Bytes,
-    extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code},
-};
+use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
 use futures_util::{SinkExt as _, StreamExt as _};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
@@ -32,19 +29,7 @@ impl ConnectionPlayer {
 }
 
 #[inline(always)]
-pub async fn handle_socket(mut socket: WebSocket, ip: IpAddr, room_id: RoomId) {
-    match socket
-        .send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
-        .await
-    {
-        Ok(_) => log_ws(ip, Ok(WebSocketSendAction::SendPing)),
-        Err(_) => return log_ws(ip, Err(WebSocketSendAction::SendPing)),
-    }
-    match socket.recv().await {
-        Some(Ok(Message::Pong(_))) => log_ws(ip, WebSocketReceiveAction::GotPong),
-        _ => return,
-    }
-
+pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
     let session_lock = GameSessionLock::new(room_id);
     let mut queue_rx = session_lock.with_read(|session| session.subscribe_queue());
     let (conn_tx, mut conn_rx) = mpsc::channel(QUEUE_MESSAGE_LIMIT);
