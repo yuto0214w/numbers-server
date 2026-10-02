@@ -80,7 +80,9 @@ pub fn position() -> ArrayBuilder {
             .maximum(Some(BOARD_SIZE - 1))
             .into()
     };
-    tuple([coordinate(), coordinate()])
+    tuple([coordinate(), coordinate()]).description(Some(
+        "`[x, y]` の形の座標 (`RoomData.pieces[y][x]` のマスを指す)",
+    ))
 }
 
 #[inline(always)]
