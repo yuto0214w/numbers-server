@@ -6,7 +6,8 @@ use uuid::Uuid;
 use crate::{
     game::PLAYER_GRACE_PERIOD,
     types::{
-        Player, Position, Side,
+        Player, Position, RoomId, Side,
+        http::RoomData,
         ws::{RegisterRoomEvent, RoomEvent},
     },
 };
@@ -106,8 +107,13 @@ impl Room {
         self.players.values().collect()
     }
 
-    pub fn get_board(&self) -> &Board {
-        &self.board
+    pub fn to_data(&self, room_id: RoomId) -> RoomData<'_> {
+        RoomData {
+            room_id,
+            current_turn: self.board.get_current_turn(),
+            players: self.get_players(),
+            pieces: self.board.get_pieces(),
+        }
     }
 
     pub fn move_piece(

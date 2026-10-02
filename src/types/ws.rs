@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::openapi::{failure, movement, result, tagged, tuple, uuid};
 
-use super::{Position, Side};
+use super::{Position, Side, http::RoomData};
 
 // client -> server
 
@@ -203,6 +203,11 @@ impl PartialSchema for Responses {
         OneOfBuilder::new()
             .description(Some("サーバーから個別のクライアントへ送るメッセージ"))
             .item(tagged(
+                100,
+                "接続した時点での部屋の状態",
+                Some(Ref::from_schema_name(RoomData::name()).into()),
+            ))
+            .item(tagged(
                 101,
                 "`JoinTeam` を処理した",
                 Some(Ref::from_schema_name(CreateUser::name()).into()),
@@ -222,6 +227,22 @@ impl ToSchema for Responses {
     fn schemas(schemas: &mut Vec<(String, RefOr<Schema>)>) {
         schemas.push((CreateUser::name().into(), CreateUser::schema()));
         <CreateUser as ToSchema>::schemas(schemas);
+        schemas.push((RoomData::name().into(), RoomData::schema()));
+        <RoomData as ToSchema>::schemas(schemas);
+    }
+}
+
+pub struct InitialRoomState<'a>(pub RoomData<'a>);
+
+impl Serialize for InitialRoomState<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("t", &100u8)?;
+        map.serialize_entry("c", &self.0)?;
+        map.end()
     }
 }
 

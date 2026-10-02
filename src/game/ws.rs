@@ -9,7 +9,10 @@ use uuid::Uuid;
 use crate::{
     types::{
         RoomId,
-        ws::{CreateUser, PlayerAction, PlayerActionWithAuth, PlayerActionWithoutAuth, Responses},
+        ws::{
+            CreateUser, InitialRoomState, PlayerAction, PlayerActionWithAuth,
+            PlayerActionWithoutAuth, Responses,
+        },
     },
     util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
 };
@@ -31,7 +34,13 @@ impl ConnectionPlayer {
 #[inline(always)]
 pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
     let session_lock = GameSessionLock::new(room_id);
-    let mut queue_rx = session_lock.with_read(|session| session.subscribe_queue());
+    let (mut queue_rx, initial_room_state) = session_lock.with_read(|session| {
+        let room_data = session.get_room().to_data(room_id);
+        (
+            session.subscribe_queue(),
+            serde_json::to_string(&InitialRoomState(room_data)).unwrap(),
+        )
+    });
     let (conn_tx, mut conn_rx) = mpsc::channel(QUEUE_MESSAGE_LIMIT);
     let (mut sender, mut receiver) = socket.split();
 
@@ -57,6 +66,9 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                     Err(_) => log_ws(ip, Err(WebSocketSendAction::SendClose(cf))),
                 }
             }};
+        }
+        if send_text_message!(&initial_room_state).is_err() {
+            return;
         }
         loop {
             tokio::select! {
