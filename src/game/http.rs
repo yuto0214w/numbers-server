@@ -2,7 +2,10 @@ use std::net::SocketAddr;
 
 use axum::{
     Json,
-    extract::{ConnectInfo, Path, Request, WebSocketUpgrade},
+    extract::{
+        ConnectInfo, Path, Request, WebSocketUpgrade,
+        rejection::{JsonRejection, PathRejection},
+    },
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse as _, Response},
@@ -53,19 +56,15 @@ pub async fn version() -> Response {
     request_body = HttpRoomConfig,
     responses(
         (status = CREATED, description = "部屋を作成した", body = CreateRoom),
-        (status = BAD_REQUEST, description = "設定が不正", body = CreateRoom),
-        (
-            status = UNSUPPORTED_MEDIA_TYPE,
-            description = "Content-Type が application/json ではない",
-        ),
-        (
-            status = UNPROCESSABLE_ENTITY,
-            description = "ボディを JSON として解釈できない",
-        ),
+        (status = BAD_REQUEST, description = "本文または設定が不正", body = CreateRoom),
     ),
 )]
-pub async fn new_room(Json(config): Json<HttpRoomConfig>) -> Response {
-    let config = match RoomConfig::try_from(config) {
+pub async fn new_room(body: Result<Json<HttpRoomConfig>, JsonRejection>) -> Response {
+    let config = match body {
+        Ok(Json(config)) => RoomConfig::try_from(config),
+        Err(_) => Err("INVALID_BODY"),
+    };
+    let config = match config {
         Ok(config) => config,
         Err(message) => {
             return JsonResponse {
@@ -117,11 +116,12 @@ pub async fn room_list() -> Response {
 }
 
 pub async fn room_existence_check(
-    Path(room_id): Path<RoomId>,
+    room_id: Result<Path<RoomId>, PathRejection>,
     req: Request,
     next: Next,
 ) -> Response {
-    if GAME_SESSION_MAP.read().get(&room_id).is_none() {
+    let exists = room_id.is_ok_and(|Path(room_id)| GAME_SESSION_MAP.read().contains_key(&room_id));
+    if !exists {
         return JsonResponse {
             status_code: StatusCode::NOT_FOUND,
             content: None::<()>,
@@ -174,6 +174,10 @@ pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
         (
             status = BAD_REQUEST,
             description = "WebSocket へのアップグレードを要求していない",
+        ),
+        (
+            status = UPGRADE_REQUIRED,
+            description = "HTTP/1.0 などで接続を切り替えられない",
         ),
         (status = NOT_FOUND, description = "部屋が存在しない", body = Null),
     ),

@@ -60,7 +60,8 @@ impl PartialSchema for CreateRoom {
                     .required("room_id"),
             )
             .item(
-                failure(["INVALID_PLAYER_LIMIT"]).description(Some("設定が不正で作成できなかった")),
+                failure(["INVALID_BODY", "INVALID_PLAYER_LIMIT"])
+                    .description(Some("本文または設定が不正で作成できなかった")),
             )
             .into()
     }
