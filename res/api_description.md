@@ -23,6 +23,10 @@
 
 また，WebSocket に接続すると，サーバーは接続した時点での部屋の状態を `InitialRoomState` (100) として送ります。
 
+> [!WARNING]
+> `MovePiece` では駒の移動元と移動先のみが配信されます。
+> 駒が動かされたことによる盤面の変化など，詳細なルールは [`rule.txt`](rule.txt) を参照してください。
+
 ### 参加と復帰
 
 `JoinTeam` に成功すると `UserCreated` で `private_id` と `public_id` が返ります。

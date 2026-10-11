@@ -62,6 +62,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )
                 .split_for_parts();
 
+            router = router.route(
+                "/rule.txt",
+                get(|| async { include_str!("../res/rule_v1.txt") }),
+            );
+
             if config.listener.serve_docs {
                 let openapi_json = Bytes::from(api.to_json()?);
                 let openapi_yaml = Bytes::from(api.to_yaml()?);
