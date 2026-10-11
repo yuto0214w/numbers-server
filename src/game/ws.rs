@@ -151,6 +151,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                         log_ws(ip, WebSocketReceiveAction::GotClose(c));
                         break;
                     }
+                    Message::Ping(_) | Message::Pong(_) => {}
                     _ => permit.send(Responses::GotInvalidData),
                 }
             }
