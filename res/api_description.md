@@ -26,10 +26,18 @@
 ### 参加と復帰
 
 `JoinTeam` に成功すると `UserCreated` で `private_id` と `public_id` が返ります。
-`private_id` は本人だけが持つ秘密の値で，これを `Resume` で示すと認証済みの状態になり，`LeaveTeam` と `Move` が使えるようになります。
+
+- `private_id`: これを `Resume` で示すと認証済みの状態になり，`LeaveTeam` と `Move` が使えるようになります。
+- `public_id`: 部屋への配信の `i` やプレイヤーの一覧から自身を特定するために必要です。
 
 接続が切れてもプレイヤーはすぐには消えず，60 秒の猶予があります。その間に繋ぎ直して `Resume` を送れば元のプレイヤーとして復帰できます。
 猶予を過ぎていた場合は `SessionExpired` が返るので，`JoinTeam` からやり直してください。
+
+### 操作の結果
+
+失敗した場合は `ActionNotAccepted` が返ります。
+`Move` または `LeaveTeam` が成功した場合は，個別の応答は返りません。
+`i` が自分の `public_id` である部屋への配信 (`MovePiece` / `PlayerLeave`) が届くことで成功がわかります。
 
 ### 切断される場合
 
