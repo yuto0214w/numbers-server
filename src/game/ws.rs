@@ -89,7 +89,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                     Some(
                         response @ (Responses::UserCreated(_)
                         | Responses::Authorized
-                        | Responses::ActionNotAccepted
+                        | Responses::ActionNotAccepted(_)
                         | Responses::SessionExpired),
                     ) => {
                         let text = serde_json::to_string(&response).unwrap();
@@ -211,16 +211,15 @@ fn handle_game(
                             room.remove_player(private_id);
                         }
                         PlayerActionWithAuth::Move(old_position, new_position) => {
-                            if room
-                                .move_piece(private_id, old_position, new_position)
-                                .is_err()
+                            if let Err(error) =
+                                room.move_piece(private_id, old_position, new_position)
                             {
-                                return Some(Responses::ActionNotAccepted);
+                                return Some(Responses::ActionNotAccepted(error.as_str()));
                             }
                         }
                     }
                 }
-                None => return Some(Responses::ActionNotAccepted),
+                None => return Some(Responses::ActionNotAccepted("UNAUTHORIZED")),
             },
         }
         None

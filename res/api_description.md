@@ -39,7 +39,16 @@
 
 ### 操作の結果
 
-失敗した場合は `ActionNotAccepted` が返ります。
+失敗した場合は `ActionNotAccepted` (103) が返り，`c` に理由が入ります。
+
+| 理由               | 状況                                       |
+| ------------------ | ------------------------------------------ |
+| `UNAUTHORIZED`     | 未認証                                     |
+| `INVALID_POSITION` | 範囲外の座標                               |
+| `INVALID_TURN`     | 自陣の手番ではない                         |
+| `INVALID_PIECE`    | 移動元の駒が自陣の駒ではないか，存在しない |
+| `INVALID_MOVE`     | 不正な移動                                 |
+
 `Move` または `LeaveTeam` が成功した場合は，個別の応答は返りません。
 `i` が自分の `public_id` である部屋への配信 (`MovePiece` / `PlayerLeave`) が届くことで成功がわかります。
 

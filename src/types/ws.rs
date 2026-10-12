@@ -6,7 +6,7 @@ use serde::{
 use serde_json::Value;
 use utoipa::{
     PartialSchema, ToSchema,
-    openapi::{OneOfBuilder, Ref, RefOr, Schema},
+    openapi::{ObjectBuilder, OneOfBuilder, Ref, RefOr, Schema, schema::Type},
 };
 use uuid::Uuid;
 
@@ -170,7 +170,7 @@ impl ToSchema for CreateUser {}
 pub enum Responses {
     UserCreated(CreateUser),
     Authorized,
-    ActionNotAccepted,
+    ActionNotAccepted(&'static str),
     SessionExpired,
 
     AuthorizedInternal(Uuid),
@@ -182,17 +182,19 @@ impl Serialize for Responses {
     where
         S: serde::Serializer,
     {
-        let (tag, content) = match self {
-            Self::UserCreated(user) => (101u8, Some(user)),
-            Self::Authorized => (102, None),
-            Self::ActionNotAccepted => (103, None),
-            Self::SessionExpired => (104, None),
+        let mut map = serializer.serialize_map(None)?;
+        match self {
+            Self::UserCreated(user) => {
+                map.serialize_entry("t", &101u8)?;
+                map.serialize_entry("c", user)?;
+            }
+            Self::Authorized => map.serialize_entry("t", &102u8)?,
+            Self::ActionNotAccepted(reason) => {
+                map.serialize_entry("t", &103u8)?;
+                map.serialize_entry("c", reason)?;
+            }
+            Self::SessionExpired => map.serialize_entry("t", &104u8)?,
             Self::AuthorizedInternal(_) | Self::GotInvalidData => unreachable!(),
-        };
-        let mut map = serializer.serialize_map(Some(1 + usize::from(content.is_some())))?;
-        map.serialize_entry("t", &tag)?;
-        if let Some(content) = content {
-            map.serialize_entry("c", content)?;
         }
         map.end()
     }
@@ -213,7 +215,22 @@ impl PartialSchema for Responses {
                 Some(Ref::from_schema_name(CreateUser::name()).into()),
             ))
             .item(tagged(102, "`Resume` による復帰を受け入れた", None))
-            .item(tagged(103, "直前の操作を受け付けなかった", None))
+            .item(tagged(
+                103,
+                "直前の操作を受け付けなかった",
+                Some(
+                    ObjectBuilder::new()
+                        .schema_type(Type::String)
+                        .enum_values(Some([
+                            "UNAUTHORIZED",
+                            "INVALID_POSITION",
+                            "INVALID_TURN",
+                            "INVALID_PIECE",
+                            "INVALID_MOVE",
+                        ]))
+                        .into(),
+                ),
+            ))
             .item(tagged(
                 104,
                 "指定されたプレイヤーが既に部屋から居なくなっている (再度 `JoinTeam` が必要)",

@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::{
     game::INITIAL_NUMBER,
     types::{BOARD_SIZE, BoardPieces, Piece, Position, Side},
@@ -13,14 +11,14 @@ pub enum BoardOperationError {
     InvalidMove,
 }
 
-impl fmt::Display for BoardOperationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match *self {
+impl BoardOperationError {
+    pub fn as_str(&self) -> &'static str {
+        match *self {
             Self::InvalidPosition => "INVALID_POSITION",
             Self::InvalidTurn => "INVALID_TURN",
             Self::InvalidPiece => "INVALID_PIECE",
             Self::InvalidMove => "INVALID_MOVE",
-        })
+        }
     }
 }
 
