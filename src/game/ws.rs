@@ -225,6 +225,11 @@ fn handle_game(
                     ));
                 }
             },
+            PlayerAction::Unknown => {
+                return Some(Responses::ActionNotAccepted(
+                    ActionNotAcceptedReason::UnknownAction,
+                ));
+            }
         }
         None
     })

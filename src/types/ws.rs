@@ -29,6 +29,7 @@ pub enum PlayerActionWithAuth {
 pub enum PlayerAction {
     WithoutAuth(PlayerActionWithoutAuth),
     WithAuth(PlayerActionWithAuth),
+    Unknown,
 }
 
 fn deserialize_content<T, E>(content: Option<Value>) -> Result<T, E>
@@ -46,8 +47,9 @@ impl<'de> Deserialize<'de> for PlayerAction {
         D: serde::Deserializer<'de>,
     {
         #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
         struct Tagged {
-            t: u8,
+            t: u64,
             #[serde(default)]
             c: Option<Value>,
         }
@@ -77,10 +79,7 @@ impl<'de> Deserialize<'de> for PlayerAction {
                     to_position(new_position),
                 )))
             }
-            _ => Err(de::Error::invalid_value(
-                de::Unexpected::Unsigned(t.into()),
-                &"a known player action tag",
-            )),
+            _ => Ok(Self::Unknown),
         }
     }
 }
@@ -183,6 +182,7 @@ impl ToSchema for CreateUser {}
 #[derive(Debug, Clone, Copy, Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ActionNotAcceptedReason {
+    UnknownAction,
     Unauthorized,
     InvalidPosition,
     InvalidTurn,
