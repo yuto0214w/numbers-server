@@ -62,10 +62,19 @@ impl<'de> Deserialize<'de> for PlayerAction {
             ))),
             2 => Ok(Self::WithAuth(PlayerActionWithAuth::LeaveTeam)),
             3 => {
+                #[inline(always)]
+                fn to_usize(v: i64) -> usize {
+                    usize::try_from(v).unwrap_or(usize::MAX)
+                }
+                #[inline(always)]
+                fn to_position((x, y): (i64, i64)) -> Position {
+                    (to_usize(x), to_usize(y))
+                }
+
                 let (old_position, new_position) = deserialize_content(c)?;
                 Ok(Self::WithAuth(PlayerActionWithAuth::Move(
-                    old_position,
-                    new_position,
+                    to_position(old_position),
+                    to_position(new_position),
                 )))
             }
             _ => Err(de::Error::invalid_value(
