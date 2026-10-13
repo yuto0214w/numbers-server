@@ -112,16 +112,11 @@ pub fn result(success: bool) -> ObjectBuilder {
 }
 
 #[inline(always)]
-pub fn failure<'a, I>(messages: I) -> ObjectBuilder
+pub fn failure<T>() -> ObjectBuilder
 where
-    I: IntoIterator<Item = &'a str>,
+    T: PartialSchema,
 {
     result(false)
-        .property(
-            "message",
-            ObjectBuilder::new()
-                .schema_type(Type::String)
-                .enum_values(Some(messages)),
-        )
+        .property("message", T::schema())
         .required("message")
 }

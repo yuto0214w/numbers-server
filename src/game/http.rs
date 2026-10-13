@@ -15,7 +15,7 @@ use crate::{
     openapi::Null,
     types::{
         RoomId,
-        http::{CreateRoom, HttpRoomConfig, RoomData, RoomList, RoomSummary},
+        http::{CreateRoom, CreateRoomError, HttpRoomConfig, RoomData, RoomList, RoomSummary},
     },
     util::{JsonResponse, WebSocketAction, log_ws},
 };
@@ -62,7 +62,7 @@ pub async fn version() -> Response {
 pub async fn new_room(body: Result<Json<HttpRoomConfig>, JsonRejection>) -> Response {
     let config = match body {
         Ok(Json(config)) => RoomConfig::try_from(config),
-        Err(_) => Err("INVALID_BODY"),
+        Err(_) => Err(CreateRoomError::InvalidBody),
     };
     let config = match config {
         Ok(config) => config,

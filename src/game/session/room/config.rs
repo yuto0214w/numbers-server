@@ -1,6 +1,9 @@
 use crate::{
     game::MAX_TEAM_PLAYER_LIMIT,
-    types::{Side, http::HttpRoomConfig},
+    types::{
+        Side,
+        http::{CreateRoomError, HttpRoomConfig},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -10,13 +13,13 @@ pub struct RoomConfig {
 }
 
 impl TryFrom<HttpRoomConfig> for RoomConfig {
-    type Error = &'static str;
+    type Error = CreateRoomError;
 
     fn try_from(value: HttpRoomConfig) -> Result<Self, Self::Error> {
         let team_player_limit = match value.team_player_limit {
             Some(limit) if limit >= 1 && limit <= MAX_TEAM_PLAYER_LIMIT => limit,
             None => 1,
-            _ => return Err("INVALID_PLAYER_LIMIT"),
+            _ => return Err(CreateRoomError::InvalidPlayerLimit),
         };
         Ok(Self {
             team_player_limit,

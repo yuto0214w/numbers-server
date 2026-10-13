@@ -10,8 +10,8 @@ use crate::{
     types::{
         RoomId,
         ws::{
-            CreateUser, InitialRoomState, PlayerAction, PlayerActionWithAuth,
-            PlayerActionWithoutAuth, Responses,
+            ActionNotAcceptedReason, CreateUser, CreateUserError, InitialRoomState, PlayerAction,
+            PlayerActionWithAuth, PlayerActionWithoutAuth, Responses,
         },
     },
     util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
@@ -188,7 +188,7 @@ fn handle_game(
                         }
                         None => {
                             return Some(Responses::UserCreated(CreateUser::Err {
-                                message: "PLAYER_LIMIT_EXCEEDED",
+                                message: CreateUserError::PlayerLimitExceeded,
                             }));
                         }
                     }
@@ -214,12 +214,16 @@ fn handle_game(
                             if let Err(error) =
                                 room.move_piece(private_id, old_position, new_position)
                             {
-                                return Some(Responses::ActionNotAccepted(error.as_str()));
+                                return Some(Responses::ActionNotAccepted(error.into()));
                             }
                         }
                     }
                 }
-                None => return Some(Responses::ActionNotAccepted("UNAUTHORIZED")),
+                None => {
+                    return Some(Responses::ActionNotAccepted(
+                        ActionNotAcceptedReason::Unauthorized,
+                    ));
+                }
             },
         }
         None

@@ -22,12 +22,20 @@ pub struct HttpRoomConfig {
 
 // send
 
+/// 部屋を作成できなかった理由
+#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CreateRoomError {
+    InvalidBody,
+    InvalidPlayerLimit,
+}
+
 /// 部屋の作成結果
 ///
 /// `success` で成功と失敗を見分ける
 pub enum CreateRoom {
     Ok { room_id: RoomId },
-    Err { message: &'static str },
+    Err { message: CreateRoomError },
 }
 
 impl Serialize for CreateRoom {
@@ -60,7 +68,7 @@ impl PartialSchema for CreateRoom {
                     .required("room_id"),
             )
             .item(
-                failure(["INVALID_BODY", "INVALID_PLAYER_LIMIT"])
+                failure::<CreateRoomError>()
                     .description(Some("本文または設定が不正で作成できなかった")),
             )
             .into()

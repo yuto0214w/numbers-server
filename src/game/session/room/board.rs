@@ -1,6 +1,6 @@
 use crate::{
     game::INITIAL_NUMBER,
-    types::{BOARD_SIZE, BoardPieces, Piece, Position, Side},
+    types::{BOARD_SIZE, BoardPieces, Piece, Position, Side, ws::ActionNotAcceptedReason},
 };
 
 #[derive(Debug, Clone)]
@@ -11,13 +11,13 @@ pub enum BoardOperationError {
     InvalidMove,
 }
 
-impl BoardOperationError {
-    pub fn as_str(&self) -> &'static str {
-        match *self {
-            Self::InvalidPosition => "INVALID_POSITION",
-            Self::InvalidTurn => "INVALID_TURN",
-            Self::InvalidPiece => "INVALID_PIECE",
-            Self::InvalidMove => "INVALID_MOVE",
+impl From<BoardOperationError> for ActionNotAcceptedReason {
+    fn from(value: BoardOperationError) -> Self {
+        match value {
+            BoardOperationError::InvalidPosition => Self::InvalidPosition,
+            BoardOperationError::InvalidTurn => Self::InvalidTurn,
+            BoardOperationError::InvalidPiece => Self::InvalidPiece,
+            BoardOperationError::InvalidMove => Self::InvalidMove,
         }
     }
 }

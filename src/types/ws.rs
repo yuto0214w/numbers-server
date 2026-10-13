@@ -6,7 +6,7 @@ use serde::{
 use serde_json::Value;
 use utoipa::{
     PartialSchema, ToSchema,
-    openapi::{ObjectBuilder, OneOfBuilder, Ref, RefOr, Schema, schema::Type},
+    openapi::{OneOfBuilder, Ref, RefOr, Schema},
 };
 use uuid::Uuid;
 
@@ -104,13 +104,20 @@ impl ToSchema for PlayerAction {
 
 // server -> client
 
+/// 陣営に参加できなかった理由
+#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CreateUserError {
+    PlayerLimitExceeded,
+}
+
 /// 陣営への参加結果
 ///
 /// `success` で成功と失敗を見分ける
 #[derive(Clone, Copy)]
 pub enum CreateUser {
     Ok { private_id: Uuid, public_id: Uuid },
-    Err { message: &'static str },
+    Err { message: CreateUserError },
 }
 
 impl Serialize for CreateUser {
@@ -156,21 +163,29 @@ impl PartialSchema for CreateUser {
                     )
                     .required("public_id"),
             )
-            .item(
-                failure(["PLAYER_LIMIT_EXCEEDED"])
-                    .description(Some("チームが満員で参加できなかった")),
-            )
+            .item(failure::<CreateUserError>().description(Some("チームが満員で参加できなかった")))
             .into()
     }
 }
 
 impl ToSchema for CreateUser {}
 
+/// 操作を受け付けなかった理由
+#[derive(Debug, Clone, Copy, Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ActionNotAcceptedReason {
+    Unauthorized,
+    InvalidPosition,
+    InvalidTurn,
+    InvalidPiece,
+    InvalidMove,
+}
+
 #[derive(Clone, Copy)]
 pub enum Responses {
     UserCreated(CreateUser),
     Authorized,
-    ActionNotAccepted(&'static str),
+    ActionNotAccepted(ActionNotAcceptedReason),
     SessionExpired,
 
     AuthorizedInternal(Uuid),
@@ -218,18 +233,7 @@ impl PartialSchema for Responses {
             .item(tagged(
                 103,
                 "直前の操作を受け付けなかった",
-                Some(
-                    ObjectBuilder::new()
-                        .schema_type(Type::String)
-                        .enum_values(Some([
-                            "UNAUTHORIZED",
-                            "INVALID_POSITION",
-                            "INVALID_TURN",
-                            "INVALID_PIECE",
-                            "INVALID_MOVE",
-                        ]))
-                        .into(),
-                ),
+                Some(ActionNotAcceptedReason::schema()),
             ))
             .item(tagged(
                 104,
