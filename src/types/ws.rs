@@ -184,6 +184,7 @@ impl ToSchema for CreateUser {}
 pub enum ActionNotAcceptedReason {
     UnknownAction,
     Unauthorized,
+    AlreadyJoined,
     InvalidPosition,
     InvalidTurn,
     InvalidPiece,

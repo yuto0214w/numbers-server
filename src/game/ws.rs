@@ -120,8 +120,8 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                     Message::Text(text) => {
                         log_ws(ip, WebSocketReceiveAction::GotText(&text));
                         if let Ok(action) = serde_json::from_str::<PlayerAction>(&text) {
-                            let authorized_id = player.lock().authorized_id();
-                            if let Some(msg) = handle_game(action, room_id, authorized_id) {
+                            let connection_player = *player.lock();
+                            if let Some(msg) = handle_game(action, room_id, connection_player) {
                                 match msg {
                                     Responses::AuthorizedInternal(authorized_private_id) => {
                                         *player.lock() = ConnectionPlayer {
@@ -133,7 +133,10 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                                     Responses::UserCreated(CreateUser::Ok {
                                         private_id, ..
                                     }) => {
-                                        player.lock().id = Some(private_id);
+                                        *player.lock() = ConnectionPlayer {
+                                            id: Some(private_id),
+                                            authorized: false,
+                                        };
                                         permit.send(msg);
                                     }
                                     Responses::SessionExpired => {
@@ -171,14 +174,22 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
 fn handle_game(
     action: PlayerAction,
     room_id: RoomId,
-    private_id: Option<Uuid>,
+    connection_player: ConnectionPlayer,
 ) -> Option<Responses> {
     GameSessionLock::new(room_id).with_write(|session| {
         let room = session.get_room_mut();
         room.evict_expired_players();
+        let joined_id = connection_player
+            .id
+            .filter(|private_id| room.contains_player(*private_id));
         match action {
             PlayerAction::WithoutAuth(action) => match action {
                 PlayerActionWithoutAuth::JoinTeam(side) => {
+                    if joined_id.is_some() {
+                        return Some(Responses::ActionNotAccepted(
+                            ActionNotAcceptedReason::AlreadyJoined,
+                        ));
+                    }
                     match room.create_player(side, generate_name()) {
                         Some((private_id, public_id)) => {
                             return Some(Responses::UserCreated(CreateUser::Ok {
@@ -194,6 +205,11 @@ fn handle_game(
                     }
                 }
                 PlayerActionWithoutAuth::Resume(private_id) => {
+                    if joined_id.is_some_and(|joined_id| joined_id != private_id) {
+                        return Some(Responses::ActionNotAccepted(
+                            ActionNotAcceptedReason::AlreadyJoined,
+                        ));
+                    }
                     if !room.contains_player(private_id) {
                         return Some(Responses::SessionExpired);
                     }
@@ -201,7 +217,7 @@ fn handle_game(
                     return Some(Responses::AuthorizedInternal(private_id));
                 }
             },
-            PlayerAction::WithAuth(action) => match private_id {
+            PlayerAction::WithAuth(action) => match connection_player.authorized_id() {
                 Some(private_id) => {
                     if !room.contains_player(private_id) {
                         return Some(Responses::SessionExpired);

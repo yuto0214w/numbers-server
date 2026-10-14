@@ -52,6 +52,7 @@
 | ------------------ | ------------------------------------------ |
 | `UNKNOWN_ACTION`   | 未知の `t`                                 |
 | `UNAUTHORIZED`     | 未認証                                     |
+| `ALREADY_JOINED`   | 既に別のプレイヤーとして参加している       |
 | `INVALID_POSITION` | 範囲外の座標                               |
 | `INVALID_TURN`     | 自陣の手番ではない                         |
 | `INVALID_PIECE`    | 移動元の駒が自陣の駒ではないか，存在しない |
