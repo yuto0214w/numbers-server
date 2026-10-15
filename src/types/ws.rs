@@ -331,7 +331,7 @@ impl ToSchema for RoomEvent {
     }
 }
 
-/// 誰による操作なのかを添えた [`RoomEvent`]
+/// 誰による操作なのかを添えた `RoomEvent`
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RegisterRoomEvent {
     /// イベントを起こしたプレイヤーの `public_id`
