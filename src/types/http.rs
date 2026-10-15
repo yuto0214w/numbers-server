@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize, ser::SerializeMap as _};
 use utoipa::{
-    PartialSchema, ToSchema,
+    IntoParams, PartialSchema, ToSchema,
     openapi::{OneOfBuilder, Ref, RefOr, Schema},
 };
 
@@ -18,6 +18,14 @@ pub struct HttpRoomConfig {
     pub team_player_limit: Option<usize>,
     /// 先手の陣営 (省略時はランダムに決定される)
     pub first_side: Option<Side>,
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct WsParams {
+    /// クライアントが対応するプロトコルバージョン
+    #[param(minimum = 0)]
+    pub v: usize,
 }
 
 // send

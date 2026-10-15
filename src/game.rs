@@ -11,7 +11,7 @@ mod session;
 /// game::sessionで定義された部屋情報の操作
 mod ws;
 
-const MINIMUM_SERVER_VERSION: usize = 1;
+const ALLOWED_CLIENT_VERSIONS: &'static [usize] = &[1];
 
 const MAX_TEAM_PLAYER_LIMIT: usize = 2;
 const QUEUE_MESSAGE_LIMIT: usize = 16;

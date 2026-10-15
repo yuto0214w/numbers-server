@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use axum::{
     Json,
     extract::{
-        ConnectInfo, Path, Request, WebSocketUpgrade,
-        rejection::{JsonRejection, PathRejection},
+        ConnectInfo, Path, Query, Request, WebSocketUpgrade,
+        rejection::{JsonRejection, PathRejection, QueryRejection},
     },
     http::StatusCode,
     middleware::Next,
@@ -15,13 +15,15 @@ use crate::{
     openapi::Null,
     types::{
         RoomId,
-        http::{CreateRoom, CreateRoomError, HttpRoomConfig, RoomData, RoomList, RoomSummary},
+        http::{
+            CreateRoom, CreateRoomError, HttpRoomConfig, RoomData, RoomList, RoomSummary, WsParams,
+        },
     },
     util::{JsonResponse, WebSocketAction, log_ws},
 };
 
 use super::{
-    MINIMUM_SERVER_VERSION,
+    ALLOWED_CLIENT_VERSIONS,
     session::{
         GameSession,
         map::{GAME_SESSION_MAP, GameSessionLock},
@@ -30,7 +32,7 @@ use super::{
     ws::handle_socket,
 };
 
-/// クライアントに要求する最小のプロトコルバージョンを返す
+/// 接続を許可するクライアントのプロトコルバージョンを返す
 #[utoipa::path(
     get,
     path = "/version",
@@ -38,14 +40,17 @@ use super::{
     responses(
         (
             status = OK,
-            description = "クライアントに要求する最小のプロトコルバージョン",
-            body = usize,
-            content_type = "text/plain",
+            description = "接続を許可するクライアントのプロトコルバージョンの一覧",
+            body = Vec<usize>,
         ),
     ),
 )]
 pub async fn version() -> Response {
-    MINIMUM_SERVER_VERSION.to_string().into_response()
+    JsonResponse {
+        status_code: StatusCode::OK,
+        content: ALLOWED_CLIENT_VERSIONS,
+    }
+    .into_response()
 }
 
 /// 新しい部屋を作る
@@ -161,12 +166,12 @@ pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     get,
     path = "/ws",
     tag = "websocket",
-    params(("room_id" = RoomId, Path)),
+    params(("room_id" = RoomId, Path), WsParams),
     responses(
         (status = SWITCHING_PROTOCOLS, description = "WebSocket に切り替えた"),
         (
             status = BAD_REQUEST,
-            description = "WebSocket へのアップグレードを要求していない",
+            description = "`v` が指定されていないか未対応 / WebSocket へのアップグレードを要求していない",
         ),
         (
             status = UPGRADE_REQUIRED,
@@ -177,9 +182,13 @@ pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
 )]
 pub async fn serve_ws(
     Path(room_id): Path<RoomId>,
+    params: Result<Query<WsParams>, QueryRejection>,
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Response {
+    if !params.is_ok_and(|Query(params)| ALLOWED_CLIENT_VERSIONS.contains(&params.v)) {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
     ws.on_upgrade(move |socket| async move {
         let ip = addr.ip();
         log_ws(ip, WebSocketAction::Connect);
