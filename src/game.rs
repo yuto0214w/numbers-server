@@ -13,7 +13,6 @@ mod ws;
 
 const ALLOWED_CLIENT_VERSIONS: &'static [usize] = &[1];
 
-const MAX_TEAM_PLAYER_LIMIT: usize = 2;
 const QUEUE_MESSAGE_LIMIT: usize = 16;
 const INITIAL_NUMBER: u8 = 3;
 

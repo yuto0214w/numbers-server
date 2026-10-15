@@ -6,19 +6,15 @@ use uuid::Uuid;
 use crate::{
     game::PLAYER_GRACE_PERIOD,
     types::{
-        Player, Position, RoomId, Side,
+        Player, Position, RoomConfig, RoomId, Side,
         http::RoomData,
         ws::{RegisterRoomEvent, RoomEvent},
     },
 };
 
-use self::{
-    board::{Board, BoardOperationResult},
-    config::RoomConfig,
-};
+use self::board::{Board, BoardOperationResult};
 
 pub mod board;
-pub mod config;
 
 #[derive(Debug, Clone)]
 pub struct Room {
@@ -110,6 +106,7 @@ impl Room {
     pub fn to_data(&self, room_id: RoomId) -> RoomData<'_> {
         RoomData {
             room_id,
+            options: &self.config,
             current_turn: self.board.get_current_turn(),
             players: self.get_players(),
             pieces: self.board.get_pieces(),

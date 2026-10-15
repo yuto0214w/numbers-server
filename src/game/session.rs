@@ -1,8 +1,8 @@
 use tokio::sync::broadcast;
 
-use crate::types::ws::RegisterRoomEvent;
+use crate::types::{RoomConfig, ws::RegisterRoomEvent};
 
-use self::room::{Room, config::RoomConfig};
+use self::room::Room;
 
 use super::QUEUE_MESSAGE_LIMIT;
 

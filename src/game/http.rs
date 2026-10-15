@@ -14,7 +14,7 @@ use axum::{
 use crate::{
     openapi::Null,
     types::{
-        RoomId,
+        RoomConfig, RoomId,
         http::{
             CreateRoom, CreateRoomError, HttpRoomConfig, RoomData, RoomList, RoomSummary, WsParams,
         },
@@ -27,7 +27,6 @@ use super::{
     session::{
         GameSession,
         map::{GAME_SESSION_MAP, GameSessionLock},
-        room::config::RoomConfig,
     },
     ws::handle_socket,
 };

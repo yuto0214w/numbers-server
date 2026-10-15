@@ -6,7 +6,7 @@ use utoipa::{
 
 use crate::openapi::{failure, result};
 
-use super::{BoardPieces, Piece, Player, RoomId, Side};
+use super::{BoardPieces, MAX_TEAM_PLAYER_LIMIT, Piece, Player, RoomConfig, RoomId, Side};
 
 // receive
 
@@ -18,6 +18,22 @@ pub struct HttpRoomConfig {
     pub team_player_limit: Option<usize>,
     /// 先手の陣営 (省略時はランダムに決定される)
     pub first_side: Option<Side>,
+}
+
+impl TryFrom<HttpRoomConfig> for RoomConfig {
+    type Error = CreateRoomError;
+
+    fn try_from(value: HttpRoomConfig) -> Result<Self, Self::Error> {
+        let team_player_limit = match value.team_player_limit {
+            Some(limit) if limit >= 1 && limit <= MAX_TEAM_PLAYER_LIMIT => limit,
+            None => 1,
+            _ => return Err(CreateRoomError::InvalidPlayerLimit),
+        };
+        Ok(Self {
+            team_player_limit,
+            first_side: value.first_side.unwrap_or_else(Side::random),
+        })
+    }
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -93,6 +109,7 @@ impl ToSchema for CreateRoom {
 #[derive(Serialize, ToSchema)]
 pub struct RoomData<'a> {
     pub room_id: RoomId,
+    pub options: &'a RoomConfig,
     /// 現在手番の陣営
     pub current_turn: Side,
     pub players: Vec<&'a Player>,
