@@ -166,7 +166,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         _ = (&mut recv_task) => send_task.abort(),
     }
     if let Some(private_id) = player.lock().id {
-        session_lock.with_write(|session| session.get_room_mut().mark_disconnected(private_id));
+        session_lock.with_write(|session| session.get_room_mut().detach_connection(private_id));
     };
 }
 
@@ -213,7 +213,9 @@ fn handle_game(
                     if !room.contains_player(private_id) {
                         return Some(Responses::SessionExpired);
                     }
-                    room.mark_connected(private_id);
+                    if joined_id.is_none() {
+                        room.attach_connection(private_id);
+                    }
                     return Some(Responses::AuthorizedInternal(private_id));
                 }
             },

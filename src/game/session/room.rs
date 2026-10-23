@@ -21,6 +21,7 @@ pub struct Room {
     config: RoomConfig,
     room_queue: broadcast::Sender<RegisterRoomEvent>,
     players: HashMap<Uuid, Player>,
+    connections: HashMap<Uuid, usize>,
     disconnected_at: HashMap<Uuid, Instant>,
     board: Board,
 }
@@ -32,6 +33,7 @@ impl Room {
             config,
             room_queue,
             players: HashMap::new(),
+            connections: HashMap::new(),
             disconnected_at: HashMap::new(),
         }
     }
@@ -57,11 +59,13 @@ impl Room {
                 side,
             },
         );
+        self.connections.insert(private_id, 1);
         self.send_to_queue(public_id, RoomEvent::PlayerJoin(side, name));
         Some((private_id, public_id))
     }
 
     pub fn remove_player(&mut self, private_id: Uuid) -> Option<Uuid> {
+        self.connections.remove(&private_id);
         self.disconnected_at.remove(&private_id);
         let result = self
             .players
@@ -73,14 +77,20 @@ impl Room {
         result
     }
 
-    pub fn mark_disconnected(&mut self, private_id: Uuid) {
-        if self.players.contains_key(&private_id) {
-            self.disconnected_at.insert(private_id, Instant::now());
+    pub fn attach_connection(&mut self, private_id: Uuid) {
+        if let Some(count) = self.connections.get_mut(&private_id) {
+            *count += 1;
+            self.disconnected_at.remove(&private_id);
         }
     }
 
-    pub fn mark_connected(&mut self, private_id: Uuid) {
-        self.disconnected_at.remove(&private_id);
+    pub fn detach_connection(&mut self, private_id: Uuid) {
+        if let Some(count) = self.connections.get_mut(&private_id) {
+            *count -= 1;
+            if *count == 0 {
+                self.disconnected_at.insert(private_id, Instant::now());
+            }
+        }
     }
 
     pub fn evict_expired_players(&mut self) {
