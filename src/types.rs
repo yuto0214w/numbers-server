@@ -53,6 +53,7 @@ pub struct Player {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RoomConfig {
     /// 1 チームあたりの人数の上限
+    #[schema(minimum = 1)]
     pub team_player_limit: usize,
     /// 先手の陣営
     pub first_side: Side,
