@@ -90,16 +90,18 @@ impl PartialSchema for PlayerAction {
             .description(Some("クライアントからサーバーへ送るメッセージ"))
             .item(tagged(
                 0,
+                "JoinTeam",
                 "指定した陣営に参加する",
                 Some(Ref::from_schema_name(Side::name()).into()),
             ))
             .item(tagged(
                 1,
+                "Resume",
                 "`private_id` を示して切断前のプレイヤーに復帰する",
                 Some(uuid().into()),
             ))
-            .item(tagged(2, "陣営から抜ける", None))
-            .item(tagged(3, "駒を動かす", Some(movement().into())))
+            .item(tagged(2, "LeaveTeam", "陣営から抜ける", None))
+            .item(tagged(3, "Move", "駒を動かす", Some(movement().into())))
             .into()
     }
 }
@@ -231,22 +233,31 @@ impl PartialSchema for Responses {
             .description(Some("サーバーから個別のクライアントへ送るメッセージ"))
             .item(tagged(
                 100,
+                "InitialRoomState",
                 "接続した時点での部屋の状態",
                 Some(Ref::from_schema_name(RoomData::name()).into()),
             ))
             .item(tagged(
                 101,
+                "UserCreated",
                 "`JoinTeam` を処理した",
                 Some(Ref::from_schema_name(CreateUser::name()).into()),
             ))
-            .item(tagged(102, "`Resume` による復帰を受け入れた", None))
+            .item(tagged(
+                102,
+                "Authorized",
+                "`Resume` による復帰を受け入れた",
+                None,
+            ))
             .item(tagged(
                 103,
+                "ActionNotAccepted",
                 "直前の操作を受け付けなかった",
                 Some(ActionNotAcceptedReason::schema()),
             ))
             .item(tagged(
                 104,
+                "SessionExpired",
                 "指定されたプレイヤーが既に部屋から居なくなっている (再度 `JoinTeam` が必要)",
                 None,
             ))
@@ -312,15 +323,17 @@ impl PartialSchema for RoomEvent {
             .description(Some("部屋にいる全員へ配信されるイベント"))
             .item(tagged(
                 3,
+                "MovePiece",
                 "駒が動いた (`c` は `[手番が移るか, [移動元, 移動先]]`)",
                 Some(tuple([bool::schema(), movement().into()]).into()),
             ))
             .item(tagged(
                 4,
+                "PlayerJoin",
                 "プレイヤーが参加した (`c` は `[陣営, 名前]`)",
                 Some(tuple([Ref::from_schema_name(Side::name()).into(), String::schema()]).into()),
             ))
-            .item(tagged(5, "プレイヤーが抜けた", None))
+            .item(tagged(5, "PlayerLeave", "プレイヤーが抜けた", None))
             .into()
     }
 }

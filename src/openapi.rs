@@ -91,9 +91,15 @@ pub fn movement() -> ArrayBuilder {
 }
 
 #[inline(always)]
-pub fn tagged(tag: u8, description: &str, content: Option<RefOr<Schema>>) -> ObjectBuilder {
+pub fn tagged(
+    tag: u8,
+    name: &str,
+    description: &str,
+    content: Option<RefOr<Schema>>,
+) -> ObjectBuilder {
     let builder = ObjectBuilder::new()
         .schema_type(Type::Object)
+        .title(Some(name))
         .description(Some(description))
         .property("t", constant(Type::Integer, tag))
         .required("t");
