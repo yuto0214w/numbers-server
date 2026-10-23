@@ -80,7 +80,9 @@ pub fn position() -> ArrayBuilder {
             .maximum(Some(BOARD_SIZE - 1))
             .into()
     };
-    tuple([coordinate(), coordinate()])
+    tuple([coordinate(), coordinate()]).description(Some(
+        "`[x, y]` の形の座標 (`RoomData.pieces[y][x]` のマスを指す)",
+    ))
 }
 
 #[inline(always)]
@@ -89,9 +91,15 @@ pub fn movement() -> ArrayBuilder {
 }
 
 #[inline(always)]
-pub fn tagged(tag: u8, description: &str, content: Option<RefOr<Schema>>) -> ObjectBuilder {
+pub fn tagged(
+    tag: u8,
+    name: &str,
+    description: &str,
+    content: Option<RefOr<Schema>>,
+) -> ObjectBuilder {
     let builder = ObjectBuilder::new()
         .schema_type(Type::Object)
+        .title(Some(name))
         .description(Some(description))
         .property("t", constant(Type::Integer, tag))
         .required("t");
@@ -110,16 +118,11 @@ pub fn result(success: bool) -> ObjectBuilder {
 }
 
 #[inline(always)]
-pub fn failure<'a, I>(messages: I) -> ObjectBuilder
+pub fn failure<T>() -> ObjectBuilder
 where
-    I: IntoIterator<Item = &'a str>,
+    T: PartialSchema,
 {
     result(false)
-        .property(
-            "message",
-            ObjectBuilder::new()
-                .schema_type(Type::String)
-                .enum_values(Some(messages)),
-        )
+        .property("message", T::schema())
         .required("message")
 }

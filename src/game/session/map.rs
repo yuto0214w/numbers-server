@@ -17,7 +17,7 @@ pub static GAME_SESSION_MAP: LazyLock<RwLock<HashMap<RoomId, GameSession>>> = La
             let debug_room_id: RoomId = "testroom".try_into().unwrap();
             HashMap::from([(
                 debug_room_id,
-                GameSession::new(super::room::config::RoomConfig {
+                GameSession::new(crate::types::RoomConfig {
                     team_player_limit: usize::MAX,
                     first_side: crate::types::Side::A,
                 }),

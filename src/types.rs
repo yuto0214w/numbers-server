@@ -9,6 +9,7 @@ mod room_id;
 pub use room_id::RoomId;
 
 pub const BOARD_SIZE: usize = 8;
+pub const MAX_TEAM_PLAYER_LIMIT: usize = 2;
 
 pub type Position = (usize, usize);
 pub type BoardPieces = [[Option<Piece>; BOARD_SIZE]; BOARD_SIZE];
@@ -46,6 +47,16 @@ pub struct Player {
     pub public_id: Uuid,
     pub name: String,
     pub side: Side,
+}
+
+/// 部屋の設定
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct RoomConfig {
+    /// 1 チームあたりの人数の上限
+    #[schema(minimum = 1)]
+    pub team_player_limit: usize,
+    /// 先手の陣営
+    pub first_side: Side,
 }
 
 /// 盤上の駒
