@@ -97,7 +97,9 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                             break;
                         }
                     }
-                    Some(Responses::AuthorizedInternal(_)) => unreachable!(),
+                    Some(Responses::AuthorizedInternal(_) | Responses::LeftInternal) => {
+                        unreachable!()
+                    }
                     Some(Responses::GotInvalidData) => {
                         send_close_message!(close_code::INVALID, "Invalid Data");
                         break;
@@ -138,6 +140,9 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                                             authorized: false,
                                         };
                                         permit.send(msg);
+                                    }
+                                    Responses::LeftInternal => {
+                                        *player.lock() = ConnectionPlayer::default();
                                     }
                                     Responses::SessionExpired => {
                                         player.lock().authorized = false;
@@ -227,6 +232,7 @@ fn handle_game(
                     match action {
                         PlayerActionWithAuth::LeaveTeam => {
                             room.remove_player(private_id);
+                            return Some(Responses::LeftInternal);
                         }
                         PlayerActionWithAuth::Move(old_position, new_position) => {
                             if let Err(error) =

@@ -201,6 +201,7 @@ pub enum Responses {
     SessionExpired,
 
     AuthorizedInternal(Uuid),
+    LeftInternal,
     GotInvalidData,
 }
 
@@ -221,7 +222,9 @@ impl Serialize for Responses {
                 map.serialize_entry("c", reason)?;
             }
             Self::SessionExpired => map.serialize_entry("t", &104u8)?,
-            Self::AuthorizedInternal(_) | Self::GotInvalidData => unreachable!(),
+            Self::AuthorizedInternal(_) | Self::LeftInternal | Self::GotInvalidData => {
+                unreachable!()
+            }
         }
         map.end()
     }
