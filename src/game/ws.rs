@@ -72,6 +72,8 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         }
         loop {
             tokio::select! {
+                biased;
+
                 val = queue_rx.recv() => match val {
                     Ok(event) => {
                         let event_str = serde_json::to_string(&event).unwrap();
