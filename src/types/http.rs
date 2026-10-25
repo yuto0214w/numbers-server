@@ -4,9 +4,9 @@ use utoipa::{
     openapi::{OneOfBuilder, Ref, RefOr, Schema},
 };
 
-use crate::openapi::{failure, result};
+use crate::openapi::{board, failure, result};
 
-use super::{BoardPieces, MAX_TEAM_PLAYER_LIMIT, Piece, Player, RoomConfig, RoomId, Side};
+use super::{BoardPieces, MAX_TEAM_PLAYER_LIMIT, Player, RoomConfig, RoomId, Side};
 
 // receive
 
@@ -113,8 +113,7 @@ pub struct RoomData<'a> {
     /// 現在手番の陣営
     pub current_turn: Side,
     pub players: Vec<&'a Player>,
-    /// `pieces[y][x]` で参照する 8x8 の盤面で，駒が無いマスは `null`
-    #[schema(value_type = [[Option<Piece>; 8]; 8])]
+    #[schema(schema_with = board)]
     pub pieces: &'a BoardPieces,
 }
 

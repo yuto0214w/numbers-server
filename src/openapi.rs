@@ -2,13 +2,13 @@ use serde_json::Value;
 use utoipa::{
     OpenApi, PartialSchema, ToSchema,
     openapi::{
-        ArrayBuilder, ObjectBuilder, RefOr, Schema,
+        ArrayBuilder, ObjectBuilder, OneOfBuilder, Ref, RefOr, Schema,
         schema::{AllOfBuilder, ArrayItems, KnownFormat, Object, SchemaFormat, Type},
     },
 };
 
 use crate::types::{
-    BOARD_SIZE,
+    BOARD_SIZE, Piece,
     ws::{PlayerAction, RegisterRoomEvent, Responses},
 };
 
@@ -83,6 +83,26 @@ pub fn position() -> ArrayBuilder {
     tuple([coordinate(), coordinate()]).description(Some(
         "`[x, y]` の形の座標 (`RoomData.pieces[y][x]` のマスを指す)",
     ))
+}
+
+#[inline(always)]
+pub fn board() -> ArrayBuilder {
+    let row = ArrayBuilder::new()
+        .items(
+            OneOfBuilder::new()
+                .item(Ref::from_schema_name(Piece::name()))
+                .item(Null::schema()),
+        )
+        .min_items(Some(BOARD_SIZE))
+        .max_items(Some(BOARD_SIZE));
+    ArrayBuilder::new()
+        .items(row)
+        .min_items(Some(BOARD_SIZE))
+        .max_items(Some(BOARD_SIZE))
+        .description(Some(format!(
+            "`pieces[y][x]` で参照する {}x{} の盤面で，駒が無いマスは `null`",
+            BOARD_SIZE, BOARD_SIZE
+        )))
 }
 
 #[inline(always)]

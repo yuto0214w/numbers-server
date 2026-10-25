@@ -6,13 +6,13 @@ use serde::{
 use serde_json::Value;
 use utoipa::{
     PartialSchema, ToSchema,
-    openapi::{OneOfBuilder, Ref, RefOr, Schema},
+    openapi::{OneOfBuilder, Ref, RefOr, Schema, schema::AdditionalProperties},
 };
 use uuid::Uuid;
 
 use crate::openapi::{failure, movement, result, tagged, tuple, uuid};
 
-use super::{Position, Side, http::RoomData};
+use super::{Piece, Position, Side, http::RoomData};
 
 // client -> server
 
@@ -86,23 +86,31 @@ impl<'de> Deserialize<'de> for PlayerAction {
 
 impl PartialSchema for PlayerAction {
     fn schema() -> RefOr<Schema> {
-        OneOfBuilder::new()
-            .description(Some("クライアントからサーバーへ送るメッセージ"))
-            .item(tagged(
+        [
+            tagged(
                 0,
                 "JoinTeam",
                 "指定した陣営に参加する",
                 Some(Ref::from_schema_name(Side::name()).into()),
-            ))
-            .item(tagged(
+            ),
+            tagged(
                 1,
                 "Resume",
                 "`private_id` を示して切断前のプレイヤーに復帰する",
                 Some(uuid().into()),
-            ))
-            .item(tagged(2, "LeaveTeam", "陣営から抜ける", None))
-            .item(tagged(3, "Move", "駒を動かす", Some(movement().into())))
-            .into()
+            ),
+            tagged(2, "LeaveTeam", "陣営から抜ける", None),
+            tagged(3, "Move", "駒を動かす", Some(movement().into())),
+        ]
+        .into_iter()
+        .fold(
+            OneOfBuilder::new().description(Some("クライアントからサーバーへ送るメッセージ")),
+            |builder, action| {
+                builder
+                    .item(action.additional_properties(Some(AdditionalProperties::FreeForm(false))))
+            },
+        )
+        .into()
     }
 }
 
@@ -274,6 +282,7 @@ impl ToSchema for Responses {
         <CreateUser as ToSchema>::schemas(schemas);
         schemas.push((RoomData::name().into(), RoomData::schema()));
         <RoomData as ToSchema>::schemas(schemas);
+        schemas.push((Piece::name().into(), Piece::schema()));
     }
 }
 
