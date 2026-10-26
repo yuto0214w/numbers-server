@@ -2,8 +2,61 @@
 
 !pragma teoz true
 
-skinparam Style strictuml
-skinparam Monochrome reverse
+skinparam style strictuml
+
+<style>
+root {
+  BackGroundColor #313332
+  FontColor #fffef3
+  FontName sans-serif
+  LineColor #505452
+  Shadowing 0
+}
+sequenceDiagram {
+  participant {
+    BackGroundColor #393b3a
+    LineColor #505452
+    FontColor #fffef3
+    RoundCorner 6
+  }
+  actor {
+    BackGroundColor #393b3a
+    LineColor #c3b531
+    FontColor #fffef3
+  }
+  lifeLine {
+    BackGroundColor #414342
+    LineColor #505452
+  }
+  arrow {
+    LineColor #c3b531
+    FontColor #fffef3
+  }
+  note {
+    BackGroundColor #414342
+    LineColor #505452
+    FontColor #fffef3
+  }
+  group {
+    LineColor #505452
+    FontColor #fffef3
+  }
+  groupHeader {
+    BackGroundColor #414342
+    LineColor #505452
+    FontColor #c3b531
+  }
+  separator {
+    BackGroundColor #393b3a
+    LineColor #505452
+    FontColor #c3b531
+  }
+  delay {
+    FontColor #fffef3
+    LineColor #505452
+  }
+}
+</style>
 
 actor "Client 1" as A
 participant Server
