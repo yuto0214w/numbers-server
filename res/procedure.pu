@@ -9,56 +9,83 @@ actor "Client 1" as A
 participant Server
 actor "Client 2" as B
 
-A -> Server: ゲーム設定を記述したJSONをbodyとして\n/rooms/newにPOST
-note over Server: セッションを作成
-Server -> A: 部屋IDを記述したJSONをcontentとして\n201 Createdを返す
-A -> Server: /rooms/<id>にGET
-Server -> A: 現在のターン、各チームのプレイヤーと\n駒の情報を記述したJSONをcontentとして\n200 OKを返す
-A -> Server: /rooms/<id>/ws宛てにWebSocket通信を要求
+A -> Server: GET /version
+Server -> A: 200 OK\n接続を許可するプロトコルバージョンの一覧 (例: [1])
+A -> Server: POST /rooms/new\n本文は HttpRoomConfig (または {})
+note over Server: 部屋を作成
+Server -> A: 201 Created\n{success: true, room_id: RoomId}
+A -> Server: GET /rooms/{room_id}
+Server -> A: 200 OK\nRoomData (設定，手番，プレイヤー，盤面)
+A -> Server: GET /rooms/{room_id}/ws?v=1
 A <-> Server: 接続を確立
 activate Server
+Server -> A: t=InitialRoomState (100), c=RoomData
 
-A -> B: URLを伝える
+A -> B: 部屋の URL を伝える
 
-B -> Server: /rooms/<id>にGET
-Server -> B: 同上\n200 OKを返す
-B -> Server: /rooms/<id>/ws宛てにWebSocket通信を要求
+B -> Server: GET /version
+Server -> B: 200 OK\n同上
+B -> Server: GET /rooms/{room_id}
+Server -> B: 200 OK\nRoomData
+B -> Server: GET /rooms/{room_id}/ws?v=1
 B <-> Server: 接続を確立
 activate Server
+Server -> B: t=InitialRoomState (100), c=RoomData
 
-== WebSocket ==
+== 参加 ==
 
-A -> Server: t=JoinTeam, c=Side
-note over Server: プレイヤー1を作成
-Server -> A: t=PlayerJoin, i=PublicIdA, c=[Side,NameA]
-& Server -> B: t=PlayerJoin, i=PublicIdA, c=[Side,NameA]
-Server -> A: t=UserCreated, c=[true,PrivateIdA,PublicIdA]
-A -> Server: t=Resume, c=PrivateIdA
-Server -> A: t=PlayerAfk, i=PublicIdA, c=false
-& Server -> B: t=PlayerAfk, i=PublicIdA, c=false
-Server -> A: t=Authorized
+A -> Server: t=JoinTeam (0), c=SideA
+note over Server: プレイヤー 1 を作成
+Server -> A: t=PlayerJoin (4), i=PublicIdA, c=[SideA, NameA]
+& Server -> B: t=PlayerJoin (4), i=PublicIdA, c=[SideA, NameA]
+Server -> A: t=UserCreated (101)\nc={success: true, private_id: PrivateIdA, public_id: PublicIdA}
+note left of A: PlayerJoin が UserCreated より先に届く
+A -> Server: t=Resume (1), c=PrivateIdA
+Server -> A: t=Authorized (102)
 
-B -> Server: t=JoinTeam, c=Side
-note over Server: プレイヤー2を作成
-Server -> A: t=PlayerJoin, i=PublicIdB, c=[Side,NameB]
-& Server -> B: t=PlayerJoin, i=PublicIdB, c=[Side,NameB]
-Server -> B: t=UserCreated, c=[true,PrivateIdB,PublicIdB]
-B -> Server: t=Resume, c=PrivateIdB
-Server -> A: t=PlayerAfk, i=PublicIdB, c=false
-& Server -> B: t=PlayerAfk, i=PublicIdB, c=false
-Server -> B: t=Authorized
+B -> Server: t=JoinTeam (0), c=SideB
+note over Server: プレイヤー 2 を作成
+Server -> A: t=PlayerJoin (4), i=PublicIdB, c=[SideB, NameB]
+& Server -> B: t=PlayerJoin (4), i=PublicIdB, c=[SideB, NameB]
+Server -> B: t=UserCreated (101)\nc={success: true, private_id: PrivateIdB, public_id: PublicIdB}
+B -> Server: t=Resume (1), c=PrivateIdB
+Server -> B: t=Authorized (102)
 
-A -> Server: t=SelectPiece, c=[x,y]
-Server -> A: t=SelectPiece, i=PublicIdA, c=[x,y]
-& Server -> B: t=SelectPiece, i=PublicIdA, c=[x,y]
+== 対局 ==
 
-A -> Server: t=MovePiece, c=[[x1,y1],[x2,y2]]
-note over Server: この動きが不可能ならば
-Server -> A: t=ActionNotAccepted
-note over Server: この動きが可能ならば
-Server -> A: t=MovePiece, i=PublicIdA, c=[ToggleTurn,[x1,y1],[x2,y2]]
-& Server -> B: t=MovePiece, i=PublicIdA, c=[ToggleTurn,[x1,y1],[x2,y2]]
+A -> Server: t=Move (3), c=[[x1, y1], [x2, y2]]
+alt 動かせない場合
+  Server -> A: t=ActionNotAccepted (103), c=理由
+else 動かせる場合
+  Server -> A: t=MovePiece (3), i=PublicIdA\nc=[手番が移るか, [[x1, y1], [x2, y2]]]
+  & Server -> B: t=MovePiece (3), i=PublicIdA\nc=[手番が移るか, [[x1, y1], [x2, y2]]]
+end
+note left of A: 各操作はサーバーの応答を待ってから送ること
 
 ...and so on...
+
+== 切断と復帰 ==
+
+A ->x Server: 切断
+deactivate Server
+note over Server: 猶予 (60 秒) が始まる
+A -> Server: GET /rooms/{room_id}/ws?v=1
+A <-> Server: 接続を確立
+activate Server
+Server -> A: t=InitialRoomState (100), c=RoomData
+A -> Server: t=Resume (1), c=PrivateIdA
+alt 猶予内
+  Server -> A: t=Authorized (102)
+else 猶予切れ
+  Server -> A: t=SessionExpired (104)
+  note left of A: JoinTeam からやり直す
+end
+
+== 退出 ==
+
+B -> Server: t=LeaveTeam (2)
+Server -> A: t=PlayerLeave (5), i=PublicIdB
+& Server -> B: t=PlayerLeave (5), i=PublicIdB
+note right of B: PlayerLeave はプレイヤーの参加猶予切れの際も配信される
 
 @enduml
