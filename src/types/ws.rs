@@ -201,14 +201,21 @@ pub enum ActionNotAcceptedReason {
     InvalidMove,
 }
 
+/// `Resume` で復帰したプレイヤー
+#[derive(Clone, Copy, Serialize, ToSchema)]
+pub struct AuthorizedPlayer {
+    /// 他のプレイヤーにも公開される ID
+    pub public_id: Uuid,
+}
+
 #[derive(Clone, Copy)]
 pub enum Responses {
     UserCreated(CreateUser),
-    Authorized,
+    Authorized(AuthorizedPlayer),
     ActionNotAccepted(ActionNotAcceptedReason),
     SessionExpired,
 
-    AuthorizedInternal(Uuid),
+    AuthorizedInternal(Uuid, AuthorizedPlayer),
     LeftInternal,
     GotInvalidData,
 }
@@ -224,13 +231,16 @@ impl Serialize for Responses {
                 map.serialize_entry("t", &101u8)?;
                 map.serialize_entry("c", user)?;
             }
-            Self::Authorized => map.serialize_entry("t", &102u8)?,
+            Self::Authorized(player) => {
+                map.serialize_entry("t", &102u8)?;
+                map.serialize_entry("c", player)?;
+            }
             Self::ActionNotAccepted(reason) => {
                 map.serialize_entry("t", &103u8)?;
                 map.serialize_entry("c", reason)?;
             }
             Self::SessionExpired => map.serialize_entry("t", &104u8)?,
-            Self::AuthorizedInternal(_) | Self::LeftInternal | Self::GotInvalidData => {
+            Self::AuthorizedInternal(..) | Self::LeftInternal | Self::GotInvalidData => {
                 unreachable!()
             }
         }
@@ -258,7 +268,7 @@ impl PartialSchema for Responses {
                 102,
                 "Authorized",
                 "`Resume` による復帰を受け入れた",
-                None,
+                Some(Ref::from_schema_name(AuthorizedPlayer::name()).into()),
             ))
             .item(tagged(
                 103,
@@ -280,6 +290,7 @@ impl ToSchema for Responses {
     fn schemas(schemas: &mut Vec<(String, RefOr<Schema>)>) {
         schemas.push((CreateUser::name().into(), CreateUser::schema()));
         <CreateUser as ToSchema>::schemas(schemas);
+        schemas.push((AuthorizedPlayer::name().into(), AuthorizedPlayer::schema()));
         schemas.push((RoomData::name().into(), RoomData::schema()));
         <RoomData as ToSchema>::schemas(schemas);
         schemas.push((Piece::name().into(), Piece::schema()));

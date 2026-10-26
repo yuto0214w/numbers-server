@@ -10,8 +10,9 @@ use crate::{
     types::{
         RoomId,
         ws::{
-            ActionNotAcceptedReason, CreateUser, CreateUserError, InitialRoomState, PlayerAction,
-            PlayerActionWithAuth, PlayerActionWithoutAuth, Responses,
+            ActionNotAcceptedReason, AuthorizedPlayer, CreateUser, CreateUserError,
+            InitialRoomState, PlayerAction, PlayerActionWithAuth, PlayerActionWithoutAuth,
+            Responses,
         },
     },
     util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
@@ -90,7 +91,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                 val = conn_rx.recv() => match val {
                     Some(
                         response @ (Responses::UserCreated(_)
-                        | Responses::Authorized
+                        | Responses::Authorized(_)
                         | Responses::ActionNotAccepted(_)
                         | Responses::SessionExpired),
                     ) => {
@@ -99,7 +100,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                             break;
                         }
                     }
-                    Some(Responses::AuthorizedInternal(_) | Responses::LeftInternal) => {
+                    Some(Responses::AuthorizedInternal(..) | Responses::LeftInternal) => {
                         unreachable!()
                     }
                     Some(Responses::GotInvalidData) => {
@@ -127,12 +128,15 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                             let connection_player = *player.lock();
                             if let Some(msg) = handle_game(action, room_id, connection_player) {
                                 match msg {
-                                    Responses::AuthorizedInternal(authorized_private_id) => {
+                                    Responses::AuthorizedInternal(
+                                        authorized_private_id,
+                                        authorized_player,
+                                    ) => {
                                         *player.lock() = ConnectionPlayer {
                                             id: Some(authorized_private_id),
                                             authorized: true,
                                         };
-                                        permit.send(Responses::Authorized);
+                                        permit.send(Responses::Authorized(authorized_player));
                                     }
                                     Responses::UserCreated(CreateUser::Ok {
                                         private_id, ..
@@ -217,13 +221,16 @@ fn handle_game(
                             ActionNotAcceptedReason::AlreadyJoined,
                         ));
                     }
-                    if !room.contains_player(private_id) {
+                    let Some(public_id) = room.get_public_id(private_id) else {
                         return Some(Responses::SessionExpired);
-                    }
+                    };
                     if joined_id.is_none() {
                         room.attach_connection(private_id);
                     }
-                    return Some(Responses::AuthorizedInternal(private_id));
+                    return Some(Responses::AuthorizedInternal(
+                        private_id,
+                        AuthorizedPlayer { public_id },
+                    ));
                 }
             },
             PlayerAction::WithAuth(action) => match connection_player.authorized_id() {

@@ -41,7 +41,7 @@
 `JoinTeam` に成功すると `UserCreated` で `private_id` と `public_id` が返ります。
 
 - `private_id`: これを `Resume` で示すと認証済みの状態になり，`LeaveTeam` と `Move` が使えるようになります。
-- `public_id`: 部屋への配信の `i` やプレイヤーの一覧から自身を特定するために必要です。
+- `public_id`: 部屋への配信の `i` やプレイヤーの一覧から自身を特定するために必要です。`Authorized` でも返ります。
 
 #### 猶予切れによる退出 (本人)
 

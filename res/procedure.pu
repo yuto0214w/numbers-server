@@ -94,7 +94,7 @@ Server -> A: t=PlayerJoin (4), i=PublicIdA, c=[SideA, NameA]
 Server -> A: t=UserCreated (101)\nc={success: true, private_id: PrivateIdA, public_id: PublicIdA}
 note left of A: PlayerJoin が UserCreated より先に届く
 A -> Server: t=Resume (1), c=PrivateIdA
-Server -> A: t=Authorized (102)
+Server -> A: t=Authorized (102), c={public_id: PublicIdA}
 
 B -> Server: t=JoinTeam (0), c=SideB
 note over Server: プレイヤー 2 を作成
@@ -102,7 +102,7 @@ Server -> A: t=PlayerJoin (4), i=PublicIdB, c=[SideB, NameB]
 & Server -> B: t=PlayerJoin (4), i=PublicIdB, c=[SideB, NameB]
 Server -> B: t=UserCreated (101)\nc={success: true, private_id: PrivateIdB, public_id: PublicIdB}
 B -> Server: t=Resume (1), c=PrivateIdB
-Server -> B: t=Authorized (102)
+Server -> B: t=Authorized (102), c={public_id: PublicIdB}
 
 == 対局 ==
 
@@ -128,7 +128,7 @@ activate Server
 Server -> A: t=InitialRoomState (100), c=RoomData
 A -> Server: t=Resume (1), c=PrivateIdA
 alt 猶予内
-  Server -> A: t=Authorized (102)
+  Server -> A: t=Authorized (102), c={public_id: PublicIdA}
 else 猶予切れ
   Server -> A: t=SessionExpired (104)
   note left of A: JoinTeam からやり直す
