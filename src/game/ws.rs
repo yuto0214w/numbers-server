@@ -1,9 +1,15 @@
 use std::{net::IpAddr, sync::Arc};
 
-use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
+use axum::{
+    body::Bytes,
+    extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code},
+};
 use futures_util::{SinkExt as _, StreamExt as _};
 use parking_lot::Mutex;
-use tokio::sync::mpsc;
+use tokio::{
+    sync::mpsc,
+    time::{self, Instant},
+};
 use uuid::Uuid;
 
 use crate::{
@@ -18,7 +24,7 @@ use crate::{
     util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
 };
 
-use super::{QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
+use super::{PING_INTERVAL, QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
 
 #[derive(Default, Clone, Copy)]
 struct ConnectionPlayer {
@@ -71,6 +77,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         if send_text_message!(&initial_room_state).is_err() {
             return;
         }
+        let mut ping_interval = time::interval_at(Instant::now() + PING_INTERVAL, PING_INTERVAL);
         loop {
             tokio::select! {
                 biased;
@@ -109,6 +116,11 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                     }
                     None => break,
                 },
+                _ = ping_interval.tick() => {
+                    if sender.send(Message::Ping(Bytes::new())).await.is_err() {
+                        break;
+                    }
+                }
             }
         }
     });
