@@ -100,7 +100,12 @@ impl PartialSchema for PlayerAction {
                 Some(uuid().into()),
             ),
             tagged(2, "LeaveTeam", "陣営から抜ける", None),
-            tagged(3, "Move", "駒を動かす", Some(movement().into())),
+            tagged(
+                3,
+                "Move",
+                "駒を動かす (`c` は `[移動元, 移動先]`)",
+                Some(movement().into()),
+            ),
         ]
         .into_iter()
         .fold(
