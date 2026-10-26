@@ -99,17 +99,17 @@ impl PartialSchema for PlayerAction {
                 "`private_id` を示して切断前のプレイヤーに復帰する",
                 Some(uuid().into()),
             ),
-            tagged(2, "LeaveTeam", "陣営から抜ける", None),
+            tagged(2, "LeaveTeam", "陣営から退出する", None),
             tagged(
                 3,
                 "Move",
-                "駒を動かす (`c` は `[移動元, 移動先]`)",
+                "駒を移動する (`c` は `[移動元, 移動先]`)",
                 Some(movement().into()),
             ),
         ]
         .into_iter()
         .fold(
-            OneOfBuilder::new().description(Some("クライアントからサーバーへ送るメッセージ")),
+            OneOfBuilder::new().description(Some("クライアントからサーバーへ送信するメッセージ")),
             |builder, action| {
                 builder
                     .item(action.additional_properties(Some(AdditionalProperties::FreeForm(false))))
@@ -136,7 +136,7 @@ pub enum CreateUserError {
 
 /// 陣営への参加結果
 ///
-/// `success` で成功と失敗を見分ける
+/// `success` で成功と失敗を判別する
 #[derive(Clone, Copy)]
 pub enum CreateUser {
     Ok { private_id: Uuid, public_id: Uuid },
@@ -256,7 +256,7 @@ impl Serialize for Responses {
 impl PartialSchema for Responses {
     fn schema() -> RefOr<Schema> {
         OneOfBuilder::new()
-            .description(Some("サーバーから個別のクライアントへ送るメッセージ"))
+            .description(Some("サーバーから個別のクライアントへ送信するメッセージ"))
             .item(tagged(
                 100,
                 "InitialRoomState",
@@ -284,7 +284,7 @@ impl PartialSchema for Responses {
             .item(tagged(
                 104,
                 "SessionExpired",
-                "指定されたプレイヤーが既に部屋から居なくなっている (再度 `JoinTeam` が必要)",
+                "指定されたプレイヤーが既に部屋から退出している (再度 `JoinTeam` が必要)",
                 None,
             ))
             .into()
@@ -352,7 +352,7 @@ impl PartialSchema for RoomEvent {
             .item(tagged(
                 3,
                 "MovePiece",
-                "駒が動いた (`c` は `[手番が移るか, [移動元, 移動先]]`)",
+                "駒が移動した (`c` は `[手番が移るか, [移動元, 移動先]]`)",
                 Some(tuple([bool::schema(), movement().into()]).into()),
             ))
             .item(tagged(
@@ -361,7 +361,7 @@ impl PartialSchema for RoomEvent {
                 "プレイヤーが参加した (`c` は `[陣営, 名前]`)",
                 Some(tuple([Ref::from_schema_name(Side::name()).into(), String::schema()]).into()),
             ))
-            .item(tagged(5, "PlayerLeave", "プレイヤーが抜けた", None))
+            .item(tagged(5, "PlayerLeave", "プレイヤーが退出した", None))
             .into()
     }
 }

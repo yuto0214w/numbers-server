@@ -74,7 +74,7 @@ A <-> Server: 接続を確立
 activate Server
 Server -> A: t=InitialRoomState (100), c=RoomData
 
-A -> B: 部屋の URL を伝える
+A -> B: 部屋の URL を共有する
 
 B -> Server: GET /version
 Server -> B: 200 OK\n同上
@@ -107,13 +107,13 @@ Server -> B: t=Authorized (102), c={public_id: PublicIdB}
 == 対局 ==
 
 A -> Server: t=Move (3), c=[[x1, y1], [x2, y2]]
-alt 動かせない場合
+alt 移動できない場合
   Server -> A: t=ActionNotAccepted (103), c=理由
-else 動かせる場合
+else 移動できる場合
   Server -> A: t=MovePiece (3), i=PublicIdA\nc=[手番が移るか, [[x1, y1], [x2, y2]]]
   & Server -> B: t=MovePiece (3), i=PublicIdA\nc=[手番が移るか, [[x1, y1], [x2, y2]]]
 end
-note left of A: 各操作はサーバーの応答を待ってから送ること
+note left of A: 各操作はサーバーの応答を待ってから送信すること
 
 ...and so on...
 

@@ -56,7 +56,7 @@ pub enum CreateRoomError {
 
 /// 部屋の作成結果
 ///
-/// `success` で成功と失敗を見分ける
+/// `success` で成功と失敗を判別する
 pub enum CreateRoom {
     Ok { room_id: RoomId },
     Err { message: CreateRoomError },
@@ -117,7 +117,7 @@ pub struct RoomData<'a> {
     pub pieces: &'a BoardPieces,
 }
 
-/// 部屋一覧に載る各部屋の概要
+/// 部屋一覧に掲示される各部屋の概要
 #[derive(Serialize, ToSchema)]
 pub struct RoomSummary {
     pub id: RoomId,
@@ -125,6 +125,6 @@ pub struct RoomSummary {
     pub players: Vec<String>,
 }
 
-/// 存在する全ての部屋
+/// 存在するすべての部屋
 #[derive(Serialize, ToSchema)]
 pub struct RoomList(pub Vec<RoomSummary>);

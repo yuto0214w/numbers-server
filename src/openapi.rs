@@ -100,7 +100,7 @@ pub fn board() -> ArrayBuilder {
         .min_items(Some(BOARD_SIZE))
         .max_items(Some(BOARD_SIZE))
         .description(Some(format!(
-            "`pieces[y][x]` で参照する {}x{} の盤面で，駒が無いマスは `null`",
+            "`pieces[y][x]` で参照する {}x{} の盤面で，駒がないマスは `null`",
             BOARD_SIZE, BOARD_SIZE
         )))
 }
