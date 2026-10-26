@@ -52,7 +52,7 @@ pub async fn version() -> Response {
     .into_response()
 }
 
-/// 新しい部屋を作る
+/// 新しい部屋を作成する
 #[utoipa::path(
     post,
     path = "/new",
@@ -89,7 +89,7 @@ pub async fn new_room(body: Result<Json<HttpRoomConfig>, JsonRejection>) -> Resp
     .into_response()
 }
 
-/// 存在する部屋を全て返す
+/// 存在する部屋をすべて返す
 #[utoipa::path(
     get,
     path = "/",
@@ -158,7 +158,7 @@ pub async fn room_info(Path(room_id): Path<RoomId>) -> Response {
     })
 }
 
-/// 対局用の WebSocket に繋ぐ
+/// 対局用の WebSocket に接続する
 ///
 /// 接続後にやり取りするメッセージは `PlayerAction` / `Responses` / `RegisterRoomEvent` を参照
 #[utoipa::path(

@@ -6,13 +6,13 @@ use serde::{
 use serde_json::Value;
 use utoipa::{
     PartialSchema, ToSchema,
-    openapi::{OneOfBuilder, Ref, RefOr, Schema},
+    openapi::{OneOfBuilder, Ref, RefOr, Schema, schema::AdditionalProperties},
 };
 use uuid::Uuid;
 
 use crate::openapi::{failure, movement, result, tagged, tuple, uuid};
 
-use super::{Position, Side, http::RoomData};
+use super::{Piece, Position, Side, http::RoomData};
 
 // client -> server
 
@@ -86,23 +86,36 @@ impl<'de> Deserialize<'de> for PlayerAction {
 
 impl PartialSchema for PlayerAction {
     fn schema() -> RefOr<Schema> {
-        OneOfBuilder::new()
-            .description(Some("クライアントからサーバーへ送るメッセージ"))
-            .item(tagged(
+        [
+            tagged(
                 0,
                 "JoinTeam",
                 "指定した陣営に参加する",
                 Some(Ref::from_schema_name(Side::name()).into()),
-            ))
-            .item(tagged(
+            ),
+            tagged(
                 1,
                 "Resume",
                 "`private_id` を示して切断前のプレイヤーに復帰する",
                 Some(uuid().into()),
-            ))
-            .item(tagged(2, "LeaveTeam", "陣営から抜ける", None))
-            .item(tagged(3, "Move", "駒を動かす", Some(movement().into())))
-            .into()
+            ),
+            tagged(2, "LeaveTeam", "陣営から退出する", None),
+            tagged(
+                3,
+                "Move",
+                "駒を移動する (`c` は `[移動元, 移動先]`)",
+                Some(movement().into()),
+            ),
+        ]
+        .into_iter()
+        .fold(
+            OneOfBuilder::new().description(Some("クライアントからサーバーへ送信するメッセージ")),
+            |builder, action| {
+                builder
+                    .item(action.additional_properties(Some(AdditionalProperties::FreeForm(false))))
+            },
+        )
+        .into()
     }
 }
 
@@ -123,7 +136,7 @@ pub enum CreateUserError {
 
 /// 陣営への参加結果
 ///
-/// `success` で成功と失敗を見分ける
+/// `success` で成功と失敗を判別する
 #[derive(Clone, Copy)]
 pub enum CreateUser {
     Ok { private_id: Uuid, public_id: Uuid },
@@ -193,14 +206,21 @@ pub enum ActionNotAcceptedReason {
     InvalidMove,
 }
 
+/// `Resume` で復帰したプレイヤー
+#[derive(Clone, Copy, Serialize, ToSchema)]
+pub struct AuthorizedPlayer {
+    /// 他のプレイヤーにも公開される ID
+    pub public_id: Uuid,
+}
+
 #[derive(Clone, Copy)]
 pub enum Responses {
     UserCreated(CreateUser),
-    Authorized,
+    Authorized(AuthorizedPlayer),
     ActionNotAccepted(ActionNotAcceptedReason),
     SessionExpired,
 
-    AuthorizedInternal(Uuid),
+    AuthorizedInternal(Uuid, AuthorizedPlayer),
     LeftInternal,
     GotInvalidData,
 }
@@ -216,13 +236,16 @@ impl Serialize for Responses {
                 map.serialize_entry("t", &101u8)?;
                 map.serialize_entry("c", user)?;
             }
-            Self::Authorized => map.serialize_entry("t", &102u8)?,
+            Self::Authorized(player) => {
+                map.serialize_entry("t", &102u8)?;
+                map.serialize_entry("c", player)?;
+            }
             Self::ActionNotAccepted(reason) => {
                 map.serialize_entry("t", &103u8)?;
                 map.serialize_entry("c", reason)?;
             }
             Self::SessionExpired => map.serialize_entry("t", &104u8)?,
-            Self::AuthorizedInternal(_) | Self::LeftInternal | Self::GotInvalidData => {
+            Self::AuthorizedInternal(..) | Self::LeftInternal | Self::GotInvalidData => {
                 unreachable!()
             }
         }
@@ -233,7 +256,7 @@ impl Serialize for Responses {
 impl PartialSchema for Responses {
     fn schema() -> RefOr<Schema> {
         OneOfBuilder::new()
-            .description(Some("サーバーから個別のクライアントへ送るメッセージ"))
+            .description(Some("サーバーから個別のクライアントへ送信するメッセージ"))
             .item(tagged(
                 100,
                 "InitialRoomState",
@@ -250,7 +273,7 @@ impl PartialSchema for Responses {
                 102,
                 "Authorized",
                 "`Resume` による復帰を受け入れた",
-                None,
+                Some(Ref::from_schema_name(AuthorizedPlayer::name()).into()),
             ))
             .item(tagged(
                 103,
@@ -261,7 +284,7 @@ impl PartialSchema for Responses {
             .item(tagged(
                 104,
                 "SessionExpired",
-                "指定されたプレイヤーが既に部屋から居なくなっている (再度 `JoinTeam` が必要)",
+                "指定されたプレイヤーが既に部屋から退出している (再度 `JoinTeam` が必要)",
                 None,
             ))
             .into()
@@ -272,8 +295,10 @@ impl ToSchema for Responses {
     fn schemas(schemas: &mut Vec<(String, RefOr<Schema>)>) {
         schemas.push((CreateUser::name().into(), CreateUser::schema()));
         <CreateUser as ToSchema>::schemas(schemas);
+        schemas.push((AuthorizedPlayer::name().into(), AuthorizedPlayer::schema()));
         schemas.push((RoomData::name().into(), RoomData::schema()));
         <RoomData as ToSchema>::schemas(schemas);
+        schemas.push((Piece::name().into(), Piece::schema()));
     }
 }
 
@@ -327,7 +352,7 @@ impl PartialSchema for RoomEvent {
             .item(tagged(
                 3,
                 "MovePiece",
-                "駒が動いた (`c` は `[手番が移るか, [移動元, 移動先]]`)",
+                "駒が移動した (`c` は `[手番が移るか, [移動元, 移動先]]`)",
                 Some(tuple([bool::schema(), movement().into()]).into()),
             ))
             .item(tagged(
@@ -336,7 +361,7 @@ impl PartialSchema for RoomEvent {
                 "プレイヤーが参加した (`c` は `[陣営, 名前]`)",
                 Some(tuple([Ref::from_schema_name(Side::name()).into(), String::schema()]).into()),
             ))
-            .item(tagged(5, "PlayerLeave", "プレイヤーが抜けた", None))
+            .item(tagged(5, "PlayerLeave", "プレイヤーが退出した", None))
             .into()
     }
 }

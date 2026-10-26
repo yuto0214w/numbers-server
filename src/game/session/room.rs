@@ -109,6 +109,10 @@ impl Room {
         self.players.contains_key(&private_id)
     }
 
+    pub fn get_public_id(&self, private_id: Uuid) -> Option<Uuid> {
+        self.players.get(&private_id).map(|player| player.public_id)
+    }
+
     pub fn get_players(&self) -> Vec<&Player> {
         self.players.values().collect()
     }

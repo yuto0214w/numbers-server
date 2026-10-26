@@ -4,7 +4,8 @@
 
 ## 実行
 
-実行前に [Rust](https://www.rust-lang.org/) のインストールが必要です。
+コードの実行・ビルドには [Rust](https://www.rust-lang.org/) のインストールが必要です。
+また，ドキュメント内の図の描画には [PlantUML](https://plantuml.com/) のインストールが必要です。(任意)
 
 ```
 cargo r

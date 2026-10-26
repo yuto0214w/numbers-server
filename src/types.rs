@@ -64,5 +64,6 @@ pub struct RoomConfig {
 pub struct Piece {
     pub side: Side,
     /// 駒が持つ数字
+    #[schema(minimum = 1)]
     pub number: u8,
 }

@@ -1,23 +1,30 @@
 use std::{net::IpAddr, sync::Arc};
 
-use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
+use axum::{
+    body::Bytes,
+    extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code},
+};
 use futures_util::{SinkExt as _, StreamExt as _};
 use parking_lot::Mutex;
-use tokio::sync::mpsc;
+use tokio::{
+    sync::mpsc,
+    time::{self, Instant},
+};
 use uuid::Uuid;
 
 use crate::{
     types::{
         RoomId,
         ws::{
-            ActionNotAcceptedReason, CreateUser, CreateUserError, InitialRoomState, PlayerAction,
-            PlayerActionWithAuth, PlayerActionWithoutAuth, Responses,
+            ActionNotAcceptedReason, AuthorizedPlayer, CreateUser, CreateUserError,
+            InitialRoomState, PlayerAction, PlayerActionWithAuth, PlayerActionWithoutAuth,
+            Responses,
         },
     },
     util::{WebSocketReceiveAction, WebSocketSendAction, generate_name, log_error, log_ws},
 };
 
-use super::{QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
+use super::{PING_INTERVAL, QUEUE_MESSAGE_LIMIT, session::map::GameSessionLock};
 
 #[derive(Default, Clone, Copy)]
 struct ConnectionPlayer {
@@ -70,8 +77,11 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
         if send_text_message!(&initial_room_state).is_err() {
             return;
         }
+        let mut ping_interval = time::interval_at(Instant::now() + PING_INTERVAL, PING_INTERVAL);
         loop {
             tokio::select! {
+                biased;
+
                 val = queue_rx.recv() => match val {
                     Ok(event) => {
                         let event_str = serde_json::to_string(&event).unwrap();
@@ -88,7 +98,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                 val = conn_rx.recv() => match val {
                     Some(
                         response @ (Responses::UserCreated(_)
-                        | Responses::Authorized
+                        | Responses::Authorized(_)
                         | Responses::ActionNotAccepted(_)
                         | Responses::SessionExpired),
                     ) => {
@@ -97,7 +107,7 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                             break;
                         }
                     }
-                    Some(Responses::AuthorizedInternal(_) | Responses::LeftInternal) => {
+                    Some(Responses::AuthorizedInternal(..) | Responses::LeftInternal) => {
                         unreachable!()
                     }
                     Some(Responses::GotInvalidData) => {
@@ -106,6 +116,11 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                     }
                     None => break,
                 },
+                _ = ping_interval.tick() => {
+                    if sender.send(Message::Ping(Bytes::new())).await.is_err() {
+                        break;
+                    }
+                }
             }
         }
     });
@@ -125,12 +140,15 @@ pub async fn handle_socket(socket: WebSocket, ip: IpAddr, room_id: RoomId) {
                             let connection_player = *player.lock();
                             if let Some(msg) = handle_game(action, room_id, connection_player) {
                                 match msg {
-                                    Responses::AuthorizedInternal(authorized_private_id) => {
+                                    Responses::AuthorizedInternal(
+                                        authorized_private_id,
+                                        authorized_player,
+                                    ) => {
                                         *player.lock() = ConnectionPlayer {
                                             id: Some(authorized_private_id),
                                             authorized: true,
                                         };
-                                        permit.send(Responses::Authorized);
+                                        permit.send(Responses::Authorized(authorized_player));
                                     }
                                     Responses::UserCreated(CreateUser::Ok {
                                         private_id, ..
@@ -215,13 +233,16 @@ fn handle_game(
                             ActionNotAcceptedReason::AlreadyJoined,
                         ));
                     }
-                    if !room.contains_player(private_id) {
+                    let Some(public_id) = room.get_public_id(private_id) else {
                         return Some(Responses::SessionExpired);
-                    }
+                    };
                     if joined_id.is_none() {
                         room.attach_connection(private_id);
                     }
-                    return Some(Responses::AuthorizedInternal(private_id));
+                    return Some(Responses::AuthorizedInternal(
+                        private_id,
+                        AuthorizedPlayer { public_id },
+                    ));
                 }
             },
             PlayerAction::WithAuth(action) => match connection_player.authorized_id() {
