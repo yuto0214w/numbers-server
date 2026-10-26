@@ -86,6 +86,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                             }),
                         )
                         .route(
+                            "/procedure.svg",
+                            get(|| async {
+                                (
+                                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                                    include_str!(concat!(env!("OUT_DIR"), "/procedure.svg")),
+                                )
+                            }),
+                        )
+                        .route(
                             "/openapi.yaml",
                             get(move || {
                                 let openapi_yaml = openapi_yaml.clone();
